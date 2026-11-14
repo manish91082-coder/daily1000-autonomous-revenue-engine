@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
     paths:
-      - bootstrap/daily1000-autonomous-revenue-engine-v0.1.2-audited.tar.xz
+      - daily1000-autonomous-revenue-engine-v0.1.2-audited.tar.xz
 
 permissions:
   contents: write
@@ -24,7 +24,7 @@ jobs:
         id: package
         shell: bash
         run: |
-          if [ -f bootstrap/daily1000-autonomous-revenue-engine-v0.1.2-audited.tar.xz ]; then
+          if [ -f daily1000-autonomous-revenue-engine-v0.1.2-audited.tar.xz ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
@@ -35,11 +35,11 @@ jobs:
         shell: bash
         run: |
           mkdir -p .source-stage
-          tar -xJf bootstrap/daily1000-autonomous-revenue-engine-v0.1.2-audited.tar.xz -C .source-stage
+          tar -xJf daily1000-autonomous-revenue-engine-v0.1.2-audited.tar.xz -C .source-stage
           test -f .source-stage/daily1000-autonomous-revenue-engine/package.json
           cp -a .source-stage/daily1000-autonomous-revenue-engine/. ./
           test "$(node -p "require('./package.json').version")" = "0.1.2"
-          rm -rf .source-stage bootstrap
+          rm -rf .source-stage daily1000-autonomous-revenue-engine-v0.1.2-audited.tar.xz
 
       - name: Run automated tests
         if: steps.package.outputs.present == 'true'
