@@ -29,7 +29,7 @@
 
 ## Repository bootstrap
 
-The audited source archive `daily1000-autonomous-revenue-engine-v0.1.2-audited.tar.xz` is verified locally (SHA-256: `d17fc39c8ec15ca4d0ba2a996c01eb2a3726b8d5f25e0193cd4e2569a8fcb23e`). It has not yet been uploaded to this repository. A one-time `.github/workflows/import-source.yml` workflow is present. It triggers only when the exact `.tar.xz` archive is pushed to `main`; the archive upload itself remains blocked, so extraction has not run.
+The audited source archive `daily1000-autonomous-revenue-engine-v0.1.2-audited.tar.xz` has been re-verified locally in the current checkpoint (24 files; SHA-256: `d17fc39c8ec15ca4d0ba2a996c01eb2a3726b8d5f25e0193cd4e2569a8fcb23e`). Its full-package tests pass locally (13/13), and both JavaScript syntax checks pass. It has not yet been uploaded to this repository. A one-time `.github/workflows/import-source.yml` workflow is present. It triggers only when the exact `.tar.xz` archive is pushed to `main`; archive upload remains blocked, so extraction has not run.
 
 Import is complete only after the archive or its full source files are present in `main`, `package.json` reports `0.1.2`, remote CI passes, and `site/`, `docs/`, `tests/`, `state/`, `agents/` and `.github/workflows/ci.yml` are verified in the repository tree.
 
@@ -41,4 +41,4 @@ Import is complete only after the archive or its full source files are present i
 4. Verify public HTTPS deployment and privacy/security behavior.
 5. Run a small demand-validation experiment before treating pricing or revenue as proven.
 
-See `docs/QA_AND_RELEASE_GATES.md`, `docs/DEMAND_VALIDATION_PROTOCOL.md` and `docs/RELEASE_STATUS.md` for current acceptance gates and evidence standards. Earlier full-package continuity/roadmap files are not yet present in this repository tree.
+See `docs/QA_AND_RELEASE_GATES.md`, `docs/DEMAND_VALIDATION_PROTOCOL.md` and `docs/RELEASE_STATUS.md` for current acceptance gates and evidence standards.
