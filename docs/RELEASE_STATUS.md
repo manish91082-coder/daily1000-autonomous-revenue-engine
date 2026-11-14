@@ -76,3 +76,11 @@ A direct archive upload through an explicitly supplied file attachment, or a use
 - Expected SHA-256 is pinned in workflow: `d17fc39c8ec15ca4d0ba2a996c01eb2a3726b8d5f25e0193cd4e2569a8fcb23e`.
 - GitHub CI for workflow change commit `3e48a7397a414fe0393dd6b39638e1e1ca2693d6` completed successfully: [Run 43559016989](https://github.com/manish91082-coder/daily1000-autonomous-revenue-engine/actions/runs/43559016989).
 - This CI validates repository test workflow and syntax, not the archive-import job. The import job has not been triggered because the binary archive is not in the repository.
+
+
+## Browser QA environment investigation
+
+- Playwright Python is available in the execution environment and the audited source archive was extracted into an isolated temporary directory for inspection.
+- A Playwright Chromium launch succeeded, but navigation to both the local `file://` page and a local HTTP server was rejected with `net::ERR_BLOCKED_BY_ADMINISTRATOR`.
+- No page DOM, interaction behavior, or screenshot was obtained. Browser visual/functional QA therefore remains BLOCKED by the execution environment, not passed.
+- No external browser service was used and no user credentials or external accounts were accessed.
