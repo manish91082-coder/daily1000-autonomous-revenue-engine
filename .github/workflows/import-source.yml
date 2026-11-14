@@ -20,21 +20,26 @@ jobs:
         with:
           node-version: 22
 
-      - name: Check for one-time source package
+      - name: Verify exact source archive checksum
         id: package
         shell: bash
+        env:
+          EXPECTED_SHA256: d17fc39c8ec15ca4d0ba2a996c01eb2a3726b8d5f25e0193cd4e2569a8fcb23e
         run: |
-          if [ -f daily1000-autonomous-revenue-engine-v0.1.2-audited.tar.xz ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-          fi
+          archive="daily1000-autonomous-revenue-engine-v0.1.2-audited.tar.xz"
+          test -f "$archive"
+          actual="$(sha256sum "$archive" | cut -d ' ' -f 1)"
+          echo "Expected SHA-256: $EXPECTED_SHA256"
+          echo "Actual SHA-256:   $actual"
+          test "$actual" = "$EXPECTED_SHA256"
+          echo "present=true" >> "$GITHUB_OUTPUT"
 
       - name: Extract source into repository root
         if: steps.package.outputs.present == 'true'
         shell: bash
         run: |
           mkdir -p .source-stage
+          tar -tJf daily1000-autonomous-revenue-engine-v0.1.2-audited.tar.xz | grep -q '^daily1000-autonomous-revenue-engine/package.json$'
           tar -xJf daily1000-autonomous-revenue-engine-v0.1.2-audited.tar.xz -C .source-stage
           test -f .source-stage/daily1000-autonomous-revenue-engine/package.json
           cp -a .source-stage/daily1000-autonomous-revenue-engine/. ./
