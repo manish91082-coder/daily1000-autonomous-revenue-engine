@@ -17,8 +17,8 @@ The canonical local archive is `daily1000-autonomous-revenue-engine-v0.1.2-audit
 The repository still contains a simplified published prototype and documentation updates. The complete 24-file audited package has NOT yet been imported into `main`. In particular, `agents/agent_roles.yaml`, `state/mission_state.json`, and the full source documentation set are absent from the current GitHub tree.
 
 Latest repository CI recheck:
-- Commit: `f5b4a0532f36376bc1e004720bed5257dcdfb729`
-- Run: [GitHub Actions 43558921032](https://github.com/manish91082-coder/daily1000-autonomous-revenue-engine/actions/runs/43558921032)
+- Commit: `3e48a7397a414fe0393dd6b39638e1e1ca2693d6`
+- Run: [GitHub Actions 43559016989](https://github.com/manish91082-coder/daily1000-autonomous-revenue-engine/actions/runs/43559016989)
 - Result: success.
 
 This CI result validates the files currently committed in GitHub, NOT the unimported 24-file archive.
@@ -68,3 +68,11 @@ Import is complete only after:
 The archive remains present in the local execution workspace and its SHA-256 was rechecked. The current GitHub connector exposes text-file and Git-object operations but does not expose a direct local-file/binary upload action. The Dropbox upload connector requires an explicit user request and a ChatGPT-provided file attachment, so it is not an authorized substitute for an unrequested upload. No chunk-transfer workflow has been implemented or claimed. The existing archive-trigger workflow remains dormant until the exact archive is placed in the repository.
 
 A direct archive upload through an explicitly supplied file attachment, or a user-authorized connected storage route, is the cleanest next transfer path. Until then, import remains BLOCKED and the simplified GitHub prototype must not be represented as the complete v0.1.2 source.
+
+
+## Import workflow hardening verification
+
+- Updated `.github/workflows/import-source.yml` to require the exact audited archive SHA-256 before extraction.
+- Expected SHA-256 is pinned in workflow: `d17fc39c8ec15ca4d0ba2a996c01eb2a3726b8d5f25e0193cd4e2569a8fcb23e`.
+- GitHub CI for workflow change commit `3e48a7397a414fe0393dd6b39638e1e1ca2693d6` completed successfully: [Run 43559016989](https://github.com/manish91082-coder/daily1000-autonomous-revenue-engine/actions/runs/43559016989).
+- This CI validates repository test workflow and syntax, not the archive-import job. The import job has not been triggered because the binary archive is not in the repository.
