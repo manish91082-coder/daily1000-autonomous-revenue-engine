@@ -1,35 +1,52 @@
 # Release status
 
-## v0.1.2 source baseline
+## v0.1.2 audited source baseline
 
-This repository contains the browser-only AgentMargin Workbench prototype. It estimates:
-- Variable model and tool spend per attempt, adjusted by attempts per successful outcome.
-- Human review cost per accepted outcome.
-- Fixed monthly hosting, monitoring and maintenance.
-- Monthly delivery cost, cost per outcome, gross-margin-based monthly floor and setup fee.
+The canonical local archive is `daily1000-autonomous-revenue-engine-v0.1.2-audited.tar.xz`.
+
+- SHA-256: `d17fc39c8ec15ca4d0ba2a996c01eb2a3726b8d5f25e0193cd4e2569a8fcb23e`
+- Archive inventory: 24 files.
+- `package.json` version: 0.1.2; private=false; Node >=20.
+- Local test execution in this checkpoint: 13 passed, 0 failed.
+- `node --check site/app.js`: passed.
+- `node --check site/calculator.js`: passed.
+- Runtime used for this test: Node v22.16.0.
+
+## Current GitHub repository status
+
+The repository still contains a simplified published prototype and documentation updates. The complete 24-file audited package has NOT yet been imported into `main`. In particular, `agents/agent_roles.yaml`, `state/mission_state.json`, and the full source documentation set are absent from the current GitHub tree.
+
+Latest repository CI recheck:
+- Commit: `556cc8d0d08f0b859b34dc3ad09a687805fdc4c0`
+- Run: [GitHub Actions 43558665967](https://github.com/manish91082-coder/daily1000-autonomous-revenue-engine/actions/runs/43558665967)
+- Result: success.
+
+This CI result validates the files currently committed in GitHub, NOT the unimported 24-file archive.
 
 ## Explicit limitations
 
 - The prototype has not established willingness to pay or market demand.
 - Suggested prices are mathematical outputs from user-entered assumptions, not market benchmarks.
-- No customer accounts, backend, telemetry, payment processing or external API calls are included.
-- Browser visual QA, production hosting, security review, real invoice reconciliation and payout validation remain pending.
+- No customer accounts, backend, telemetry, payment processing or external API calls are included in the current published simplified prototype.
+- Browser visual QA remains incomplete; headless Chromium timed out in the prior attempt.
+- Production hosting, TLS, real invoice reconciliation, demand, sales, refunds, support and payout remain unverified.
 - Revenue is unverified and must be reported as zero until a real sale is evidenced.
 
-## Local verification
+## Import acceptance criteria
 
-Run `npm test`, `node --check site/app.js`, and `node --check site/calculator.js`.
+Import is complete only after:
+1. All 24 files from the audited archive are represented in `main`.
+2. Archive checksum and source provenance are recorded.
+3. `package.json` reports version `0.1.2`.
+4. Remote CI runs against the imported source and passes.
+5. `site/`, `docs/`, `tests/`, `state/`, `agents/`, `.github/workflows/ci.yml`, `.gitignore`, `LICENSE`, and `SECURITY.md` are verified in the repository tree.
 
-## Verified checkpoint: 2026-11-14
+## QA status
 
-- Audited archive is present in the active execution workspace and its SHA-256 matches the recorded value: `d17fc39c8ec15ca4d0ba2a996c01eb2a3726b8d5f25e0193cd4e2569a8fcb23e`.
-- Archive listing contains 24 project files.
-- Fresh extraction and local verification completed: 13 tests passed, 0 failed; `node --check site/app.js` and `node --check site/calculator.js` passed.
-- GitHub Actions Runs #4 and the three subsequent documentation runs completed successfully.
-- Browser smoke test is BLOCKED in this execution environment: installed Chromium repeatedly timed out before producing DOM output. This is an environment/tooling limitation, not a successful browser test.
-- The GitHub repository tree still does not contain `agents/`, `state/`, or the full source documentation set. Therefore audited source import is NOT COMPLETE.
-- The one-time import workflow is present, but it requires the binary archive to be uploaded to the repository root. The available GitHub connector exposes text-file/blob operations but no direct binary asset upload action. No claim of upload/import is made.
-
-## Next action
-
-Resolve the archive transfer through a verified binary-capable route, then run the import workflow and confirm the full tree and remote tests. Do not deploy or launch checkout before browser QA and source-integrity gates pass.
+- Source archive integrity: PASS.
+- Local full-package tests: PASS (13/13).
+- Local JavaScript syntax checks: PASS.
+- Current GitHub simplified prototype CI: PASS.
+- Full source import to GitHub: BLOCKED.
+- Browser visual/mobile QA: NOT TESTED / prior Chromium timeout.
+- Production release: NOT READY.
