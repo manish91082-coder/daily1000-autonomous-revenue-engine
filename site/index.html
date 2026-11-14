@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Calculate the real unit economics of AI-powered client workflows.">
+<title>AgentMargin Workbench | AI Workflow Economics</title><link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top"><a class="brand" href="#">AgentMargin<span> Workbench</span></a><span class="local">LOCAL-FIRST · NO DATA UPLOAD</span></header>
+<main>
+<section class="hero"><p class="eyebrow">AI SERVICE BUSINESS INTELLIGENCE</p><h1>Know what every successful AI workflow really costs.</h1><p class="sub">Model usage, retries, infrastructure and human review. Price client work with your actual delivery economics, not guesswork.</p></section>
+<section class="layout">
+<form id="model" class="panel">
+<h2>Workflow inputs</h2><p class="muted">Enter monthly operating assumptions. All calculations run in this browser.</p>
+<div class="fields">
+<label>Successful outcomes / month<input name="outcomes" type="number" min="1" value="500" required></label>
+<label>LLM cost per attempt (₹)<input name="llm" type="number" min="0" step=".01" value="0.8"></label>
+<label>Tool cost per attempt (₹)<input name="tools" type="number" min="0" step=".01" value="0.2"></label>
+<label>Attempts per successful outcome<input name="attempts" type="number" min="1" step=".1" value="1.25"></label>
+<label>Monthly hosting & monitoring (₹)<input name="hosting" type="number" min="0" value="1500"></label>
+<label>Monthly maintenance (₹)<input name="maintenance" type="number" min="0" value="3000"></label>
+<label>Human review minutes / outcome<input name="minutes" type="number" min="0" step=".1" value="2"></label>
+<label>Human hourly cost (₹)<input name="hourly" type="number" min="0" value="300"></label>
+<label>Target gross margin (%)<input name="margin" type="number" min="1" max="95" value="60"></label>
+<label>One-time setup effort (hours)<input name="setup" type="number" min="0" step=".5" value="8"></label>
+</div><div class="actions"><button type="submit">Recalculate model</button><button type="button" class="secondary" id="csv">Export CSV</button><button type="button" class="secondary" onclick="window.print()">Print report</button></div>
+</form>
+<aside class="panel results"><h2>Unit economics</h2><div class="metric"><span>True cost / outcome</span><strong id="unit">₹0.00</strong></div><div class="metric"><span>Monthly delivery cost</span><strong id="monthly">₹0</strong></div><div class="metric"><span>Suggested monthly floor</span><strong id="price">₹0</strong></div><div class="metric"><span>Suggested setup fee</span><strong id="setupFee">₹0</strong></div><div class="metric"><span>Client price / outcome</span><strong id="perOutcome">₹0.00</strong></div><p id="warning" class="note" role="status">Estimates depend on your inputs. Validate against actual provider invoices and delivery logs.</p></aside>
+</section>
+<section class="foot"><h2>Decision discipline</h2><p>This is a planning calculator, not a market-price benchmark or revenue forecast. Validate model prices, token usage, retry rates, human time, taxes and payment fees independently before quoting a client.</p><p><strong>Privacy:</strong> no account, analytics, cookies, external scripts, network calls or browser storage. Inputs remain in the current page session.</p></section>
+</main><footer>AgentMargin Workbench · Prototype v0.1.2 · Built for evidence-led pricing</footer><script src="calculator.js"></script><script src="app.js"></script>
+</body></html>
