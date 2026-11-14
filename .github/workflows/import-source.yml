@@ -1,0 +1,66 @@
+name: Import audited source package
+on:
+  push:
+    branches: [main]
+    paths:
+      - bootstrap/daily1000-autonomous-revenue-engine-v0.1.2-audited.zip
+
+permissions:
+  contents: write
+
+jobs:
+  import-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check for one-time source package
+        id: package
+        shell: bash
+        run: |
+          if [ -f bootstrap/daily1000-autonomous-revenue-engine-v0.1.2-audited.zip ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract source into repository root
+        if: steps.package.outputs.present == 'true'
+        shell: bash
+        run: |
+          mkdir -p .source-stage
+          unzip -q bootstrap/daily1000-autonomous-revenue-engine-v0.1.2-audited.zip -d .source-stage
+          test -f .source-stage/daily1000-autonomous-revenue-engine/package.json
+          cp -a .source-stage/daily1000-autonomous-revenue-engine/. ./
+          test "$(node -p "require('./package.json').version")" = "0.1.2"
+          rm -rf .source-stage bootstrap
+
+      - name: Run automated tests
+        if: steps.package.outputs.present == 'true'
+        run: npm test
+
+      - name: Check JavaScript syntax
+        if: steps.package.outputs.present == 'true'
+        run: |
+          node --check site/app.js
+          node --check site/calculator.js
+
+      - name: Commit extracted project files
+        if: steps.package.outputs.present == 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No extracted source changes."
+            exit 0
+          fi
+          git commit -m "chore: import audited v0.1.2 project source"
+          git push
