@@ -17,8 +17,8 @@ The canonical local archive is `daily1000-autonomous-revenue-engine-v0.1.2-audit
 The repository still contains a simplified published prototype and documentation updates. The complete 24-file audited package has NOT yet been imported into `main`. In particular, `agents/agent_roles.yaml`, `state/mission_state.json`, and the full source documentation set are absent from the current GitHub tree.
 
 Latest repository CI recheck:
-- Commit: `23daf16989f950b0a336d6d9f5dc288aa85b42e9`
-- Run: [GitHub Actions 43558766658](https://github.com/manish91082-coder/daily1000-autonomous-revenue-engine/actions/runs/43558766658)
+- Commit: `f5b4a0532f36376bc1e004720bed5257dcdfb729`
+- Run: [GitHub Actions 43558921032](https://github.com/manish91082-coder/daily1000-autonomous-revenue-engine/actions/runs/43558921032)
 - Result: success.
 
 This CI result validates the files currently committed in GitHub, NOT the unimported 24-file archive.
@@ -61,3 +61,10 @@ Import is complete only after:
 - Additional static HTML checks passed: doctype, viewport metadata, title, main landmark, labels, and no remote script/style references.
 - GitHub CI run `43558766658` for commit `23daf16989f950b0a336d6d9f5dc288aa85b42e9` completed successfully.
 - Browser rendering, full source import, production hosting, and demand validation remain open. Static checks do not substitute for browser visual QA.
+
+
+## Transfer feasibility checkpoint
+
+The archive remains present in the local execution workspace and its SHA-256 was rechecked. The current GitHub connector exposes text-file and Git-object operations but does not expose a direct local-file/binary upload action. The Dropbox upload connector requires an explicit user request and a ChatGPT-provided file attachment, so it is not an authorized substitute for an unrequested upload. No chunk-transfer workflow has been implemented or claimed. The existing archive-trigger workflow remains dormant until the exact archive is placed in the repository.
+
+A direct archive upload through an explicitly supplied file attachment, or a user-authorized connected storage route, is the cleanest next transfer path. Until then, import remains BLOCKED and the simplified GitHub prototype must not be represented as the complete v0.1.2 source.
