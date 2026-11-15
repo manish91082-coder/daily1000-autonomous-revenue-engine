@@ -59,7 +59,9 @@ test('worker cannot complete a task owned by another worker', async () => {
   const f = await fixture();
   try {
     const t = await f.queue.enqueue({ type: 'echo' }); await f.queue.claim('worker-a');
-    await assert.rejects(() => f.queue.complete(t.task.id, 'worker-b', 'forged'), /not owned/);
+    const claimed = await f.queue.get(t.task.id);
+    await assert.rejects(() => f.queue.complete(t.task.id, 'worker-b', 'forged', 'bad'), /not owned/);
+    await assert.rejects(() => f.queue.complete(t.task.id, 'worker-a', 'forged', 'bad'), /not owned/);
   } finally { await f.cleanup(); }
 });
 test('priority tasks are claimed before lower priority tasks', async () => {
@@ -68,5 +70,30 @@ test('priority tasks are claimed before lower priority tasks', async () => {
     await f.queue.enqueue({ type: 'low', priority: 1 });
     const high = await f.queue.enqueue({ type: 'high', priority: 9 });
     assert.equal((await f.queue.claim('w')).id, high.task.id);
+  } finally { await f.cleanup(); }
+});
+
+test('stale claim token cannot heartbeat or complete after same worker reclaims task', async () => {
+  let now = 1000;
+  const f = await fixture({ leaseMs: 10, now: () => now });
+  try {
+    const t = await f.queue.enqueue({ type: 'echo', maxAttempts: 3 });
+    const first = await f.queue.claim('reused-worker');
+    now += 11;
+    const second = await f.queue.claim('reused-worker');
+    assert.equal(second.id, t.task.id);
+    assert.notEqual(first.lease_token, second.lease_token);
+    await assert.rejects(() => f.queue.heartbeat(t.task.id, 'reused-worker', first.lease_token), /not owned/);
+    await assert.rejects(() => f.queue.complete(t.task.id, 'reused-worker', first.lease_token, { stale: true }), /not owned/);
+    assert.equal((await f.queue.complete(t.task.id, 'reused-worker', second.lease_token, { fresh: true })).status, 'succeeded');
+  } finally { await f.cleanup(); }
+});
+test('lease token is required for all lease mutations', async () => {
+  const f = await fixture();
+  try {
+    const t = await f.queue.enqueue({ type: 'echo' });
+    await f.queue.claim('worker-a');
+    await assert.rejects(() => f.queue.heartbeat(t.task.id, 'worker-a'), /not owned/);
+    await assert.rejects(() => f.queue.fail(t.task.id, 'worker-a', undefined, new Error('forged')), /not owned/);
   } finally { await f.cleanup(); }
 });
