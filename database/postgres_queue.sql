@@ -70,7 +70,7 @@ begin
   if p_worker_id is null or length(trim(p_worker_id)) = 0 then
     raise exception 'worker_id_required';
   end if;
-  if p_lease_seconds < 5 or p_lease_seconds > 3600 then
+  if p_lease_seconds is null or p_lease_seconds < 5 or p_lease_seconds > 3600 then
     raise exception 'lease_seconds_out_of_range';
   end if;
 
@@ -91,7 +91,11 @@ begin
   insert into revenue_runtime.task_events(task_id,event_type,attempt,detail)
   select id, case when status = 'failed' then 'task.dead_lettered' else 'task.lease_expired' end,
          attempts, jsonb_build_object('reason','lease_expired','available_at',available_at)
-    from expired;
+    from expired
+  union all
+  select id, 'task.retry_scheduled', attempts,
+         jsonb_build_object('reason','lease_expired','available_at',available_at)
+    from expired where status = 'queued';
 
   select * into v_task
     from revenue_runtime.tasks t
@@ -182,6 +186,9 @@ set search_path = pg_catalog, revenue_runtime
 as $$
 declare v_task revenue_runtime.tasks%rowtype;
 begin
+  if p_retry_delay_seconds is null or p_retry_delay_seconds < 1 or p_retry_delay_seconds > 3600 then
+    raise exception 'retry_delay_seconds_out_of_range';
+  end if;
   update revenue_runtime.tasks
      set status = case when attempts >= max_attempts then 'failed' else 'queued' end,
          available_at = case when attempts >= max_attempts then available_at
