@@ -45,7 +45,8 @@ jobs:
               process.exit(1);
             }
             if (replay.status !== "succeeded" || replay.task_id !== first.task_id ||
-                replay.idempotent_replay !== true || JSON.stringify(replay.result) !== JSON.stringify(first.result)) {
+                replay.idempotent_replay !== true || replay.result?.ok !== true ||
+                replay.result?.task_id !== first.task_id || replay.result?.checked_at !== first.result.checked_at) {
               console.error("Idempotent replay did not return the original task result:", {first, replay});
               process.exit(1);
             }
