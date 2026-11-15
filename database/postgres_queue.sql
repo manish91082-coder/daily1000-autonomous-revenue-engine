@@ -211,6 +211,23 @@ $$;
 comment on schema revenue_runtime is
   'Private internal queue schema. Do not expose through the Supabase Data API.';
 
+-- Defense in depth: explicit deny policies for Data API client roles.
+drop policy if exists deny_client_access_tasks on revenue_runtime.tasks;
+create policy deny_client_access_tasks
+  on revenue_runtime.tasks
+  for all
+  to anon, authenticated
+  using (false)
+  with check (false);
+
+drop policy if exists deny_client_access_task_events on revenue_runtime.task_events;
+create policy deny_client_access_task_events
+  on revenue_runtime.task_events
+  for all
+  to anon, authenticated
+  using (false)
+  with check (false);
+
 -- Lock down future objects created by the migration owner in this private schema.
 -- PostgreSQL grants EXECUTE to PUBLIC globally by default, so revoke globally.
 alter default privileges for role postgres
