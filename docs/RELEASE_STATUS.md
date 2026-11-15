@@ -109,3 +109,12 @@ A direct archive upload through an explicitly supplied file attachment, or a use
 - Latest GitHub Actions result for these source commits is not independently visible through the available Actions connector; CI must be treated as PENDING, not PASS.
 - Independent parallel-session concurrency/load tests, PostgreSQL adapter, distributed worker, scheduler, watchdog, alerting, kill switch, provider adapter, end-to-end checkout/payment and reconciliation remain NOT IMPLEMENTED.
 - Full audited archive import to `main`, browser visual QA and demand validation remain BLOCKED/NOT STARTED. Verified revenue remains INR 0.
+
+
+## Runtime adapter and worker-loop progress
+
+- Added a Pool-compatible PostgreSQL queue adapter at `runtime/postgres-queue.js`, with transactional enqueue + event insertion and database-function-backed claim, heartbeat, complete and fail operations.
+- Added `createPostgresRuntime` and a generic graceful polling worker loop. These are source prototypes only; no DB connection pool, secrets, cloud process, or supervisor has been configured.
+- Added adapter contract tests and worker-loop tests. They are included in the branch CI workflow, but the latest push-triggered CI run cannot currently be retrieved through the available GitHub Actions connector. CI status is PENDING.
+- Targeted two-session database probe: two concurrent claim calls held transactions open and returned different task IDs. This is a narrow concurrency PASS, not a production load test.
+- No live end-to-end Node adapter-to-Postgres test has been run because no runtime database connection string has been configured in the execution environment. The SQL-level tests above were run through the database connector.
