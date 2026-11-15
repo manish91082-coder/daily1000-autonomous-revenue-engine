@@ -17,6 +17,8 @@ type Task = {
 type ClaimResult = { rows: Task[] };
 type BooleanResult = { rows: Array<{ ok: boolean }> };
 type StatusResult = { rows: Array<{ status: string }> };
+type AuditCounts = { queued: number; claimed: number; succeeded: number };
+type AuditResult = { rows: AuditCounts[] };
 
 function jwtRole(req: Request): string | null {
   const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
@@ -42,6 +44,18 @@ const json = (body: unknown, status = 200) =>
 // This keeps revenue_runtime outside the Supabase Data API exposed schemas.
 const databaseUrl = Deno.env.get("SUPABASE_DB_URL");
 const pool = databaseUrl ? new Pool(databaseUrl, 1) : null;
+
+async function readAudit(connection: any, taskId: string): Promise<AuditCounts> {
+  const audit = await connection.queryObject<AuditCounts>`
+    select
+      count(*) filter (where event_type = 'task.queued')::int as queued,
+      count(*) filter (where event_type = 'task.claimed')::int as claimed,
+      count(*) filter (where event_type = 'task.succeeded')::int as succeeded
+    from revenue_runtime.task_events
+    where task_id = ${taskId}::uuid
+  `;
+  return audit.rows[0] ?? { queued: 0, claimed: 0, succeeded: 0 };
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "GET") {
@@ -100,7 +114,8 @@ Deno.serve(async (req: Request) => {
 
     if (task.status === "succeeded") {
       await connection.queryArray`commit`;
-      return json({ worker_id: workerId, worked: true, task_id: task.id, status: "succeeded", result: task.result, idempotent_replay: true });
+      const audit = await readAudit(connection, task.id);
+      return json({ worker_id: workerId, worked: true, task_id: task.id, status: "succeeded", result: task.result, audit, idempotent_replay: true });
     }
     if (task.status === "failed" || task.status === "cancelled") {
       await connection.queryArray`commit`;
@@ -185,7 +200,8 @@ Deno.serve(async (req: Request) => {
       ) as ok
     `;
     if (completed.rows[0]?.ok !== true) return json({ error: "completion_rejected", task_id: task.id }, 409);
-    return json({ worker_id: workerId, worked: true, task_id: task.id, status: "succeeded", result });
+    const audit = await readAudit(connection, task.id);
+    return json({ worker_id: workerId, worked: true, task_id: task.id, status: "succeeded", result, audit });
   } catch (error) {
     try { await connection.queryArray`rollback`; } catch { /* transaction may already be closed */ }
     if (task) {
