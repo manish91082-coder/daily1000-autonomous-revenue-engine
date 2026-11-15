@@ -44,6 +44,12 @@ class PostgresTaskQueue {
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 20) {
       throw new Error('maxAttempts must be an integer from 1 to 20.');
     }
+    if (!Number.isSafeInteger(priority) || priority < -2147483648 || priority > 2147483647) {
+      throw new Error('priority must be a 32-bit signed integer.');
+    }
+    if (idempotencyKey !== undefined && (typeof idempotencyKey !== 'string' || !idempotencyKey.trim())) {
+      throw new Error('idempotencyKey must be a non-empty string when provided.');
+    }
     const key = idempotencyKey || crypto.randomUUID();
     const client = await this.pool.connect();
     try {
@@ -54,7 +60,7 @@ class PostgresTaskQueue {
          values ($1, $2::jsonb, $3, $4, $5)
          on conflict (idempotency_key) do nothing
          returning *`,
-        [type, JSON.stringify(payload), key, Number(priority) || 0, maxAttempts]
+        [type, JSON.stringify(payload), key, priority, maxAttempts]
       );
       let row = inserted.rows[0];
       if (row) {
