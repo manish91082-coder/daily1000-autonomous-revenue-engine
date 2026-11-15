@@ -65,3 +65,39 @@ test('rejects stale-token completion', async () => {
   const queue = new PostgresTaskQueue(pool);
   await assert.rejects(() => queue.complete('task-1', 'worker-a', 'stale', null), /not owned/);
 });
+
+
+test('rejects invalid task priority and idempotency keys before database writes', async () => {
+  let connects = 0;
+  const pool = {
+    query: async () => ({ rows: [] }),
+    connect: async () => { connects += 1; throw new Error('database must not be reached'); }
+  };
+  const queue = new PostgresTaskQueue(pool);
+  for (const priority of [1.5, NaN, Infinity, -2147483649, 2147483648, '7']) {
+    await assert.rejects(() => queue.enqueue({ type: 'echo', priority }), /priority must be a 32-bit signed integer/);
+  }
+  await assert.rejects(() => queue.enqueue({ type: 'echo', idempotencyKey: '   ' }), /idempotencyKey must be a non-empty string/);
+  assert.equal(connects, 0);
+});
+
+test('preserves valid negative and positive integer priorities', async () => {
+  const paramsSeen = [];
+  const client = {
+    query: async (sql, params) => {
+      if (/insert into revenue_runtime\.tasks/.test(sql)) {
+        paramsSeen.push(params);
+        return { rows: [{ ...row, priority: params[3] }], rowCount: 1 };
+      }
+      if (/insert into revenue_runtime\.task_events/.test(sql)) return { rows: [], rowCount: 1 };
+      if (sql === 'begin' || sql === 'commit') return { rows: [] };
+      throw new Error('unexpected query');
+    },
+    release() {}
+  };
+  const pool = { query: async () => ({ rows: [] }), connect: async () => client };
+  const queue = new PostgresTaskQueue(pool);
+  await queue.enqueue({ type: 'echo', priority: -12 });
+  await queue.enqueue({ type: 'echo', priority: 12 });
+  assert.deepEqual(paramsSeen.map(params => params[3]), [-12, 12]);
+});
