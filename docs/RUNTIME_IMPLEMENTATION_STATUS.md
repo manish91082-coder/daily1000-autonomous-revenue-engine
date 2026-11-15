@@ -96,3 +96,14 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 - GitHub CI run #98, commit `3e1161820e1e19c022c660ff30731afce7c092ae`, completed SUCCESS. Run #97 failed because an older contract assertion still expected the removed generic claim call; that assertion was corrected in the next commit. The failed run is retained in history.
 - Deployed the corrected Edge Function as version 5, status ACTIVE, with `verify_jwt=true`. Deployment SHA: `be45c6a301e717a8374c5ce2bb4ecedeef55dcecb247b8be6d55248d517bf25c`.
 - This is a code/deployment verification only. No authenticated invocation or live duplicate replay has yet been executed. Database task count, event reconciliation and function execution remain pending.
+
+
+## Authenticated smoke workflow replay assertion and release review
+
+- Updated the manual smoke workflow to invoke the same idempotency key twice. The second response must return the original task ID and stored result with `idempotent_replay=true`; it must not create or execute another task.
+- Replay assertions compare stable result fields rather than serialized JSON text because PostgreSQL JSONB does not promise object-key order.
+- Updated the operator runbook to describe the two-call proof.
+- Opened draft PR #1 against `main` for review; it is intentionally not merged. The PR contains the runtime source import and related runtime implementation files, 22 changed files / 89 commits in the branch history. Review the full diff before merge.
+- PR link: https://github.com/manish91082-coder/daily1000-autonomous-revenue-engine/pull/1
+- The workflow remains `workflow_dispatch` only. GitHub requires the workflow to exist on the default branch for manual dispatch, so the authenticated smoke test cannot be triggered until the reviewed PR is merged. No merge was performed.
+- Current live evidence remains: Edge Function version 5 ACTIVE; no function invocation logs; no queue task rows. Authenticated execution and replay remain NOT VERIFIED.
