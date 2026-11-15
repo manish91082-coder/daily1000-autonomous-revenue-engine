@@ -107,3 +107,12 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 - PR link: https://github.com/manish91082-coder/daily1000-autonomous-revenue-engine/pull/1
 - The workflow remains `workflow_dispatch` only. GitHub requires the workflow to exist on the default branch for manual dispatch, so the authenticated smoke test cannot be triggered until the reviewed PR is merged. No merge was performed.
 - Current live evidence remains: Edge Function version 5 ACTIVE; no function invocation logs; no queue task rows. Authenticated execution and replay remain NOT VERIFIED.
+
+
+## 15 Nov 2026 database audit reconciliation enhancement
+
+- The Edge Function now queries PostgreSQL `task_events` for the exact task after completion and on idempotent replay.
+- Both responses expose event counts for `task.queued`, `task.claimed`, and `task.succeeded`.
+- The manual GitHub smoke workflow now requires exactly one of each event on the first execution and the same counts on replay, alongside stable task ID and result assertions.
+- Added source contract coverage for the audit query and response.
+- These are source-level and CI gates. They do not represent a live authenticated execution; the live queue remains empty until the protected workflow is actually invoked.
