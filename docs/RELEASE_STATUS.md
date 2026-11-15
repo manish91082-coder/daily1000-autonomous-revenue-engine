@@ -94,3 +94,18 @@ A direct archive upload through an explicitly supplied file attachment, or a use
 - Confirmed absent from `main`: `agents/agent_roles.yaml`, `state/mission_state.json`, `.gitignore`, `LICENSE`, `SECURITY.md`, and the full numbered source documentation set.
 - The exact 24-file v0.1.2 archive is still not present in GitHub. Import workflow remains dormant; full source import remains BLOCKED.
 - Browser QA remains BLOCKED by the local navigation policy described above. No visual or interaction pass is claimed.
+
+
+## 15 Nov 2026 runtime database milestone
+
+- Created isolated Supabase project `daily1000-agent-runtime` in `ap-south-1`; project ID `vpuuotssufznyjgtubuz`. Project creation quote was $0/month.
+- Applied `database/postgres_queue.sql` as migration `create_private_agent_runtime_queue`.
+- Added explicit deny-all RLS policies for `anon` and `authenticated` on both queue tables. Security Advisor subsequently returned no lints; Performance and Health advisors also returned no lints.
+- Catalog verification: RLS enabled on both tables; no schema usage for `anon` or `authenticated`; `service_role` has backend schema/table access.
+- Rollback-scoped live PostgreSQL integration test passed claim, successful completion, stale-token rejection, explicit failure/retry, lease-token clearing, expired-lease retry events and reclaim.
+- The test transaction rolled back; persistent task count is 0.
+- Runtime JavaScript retry test had two accidental literal escaped-newline sequences. Both were repaired in the source branch.
+- SQL review corrected claim locking-clause order and added null/range validation for lease and retry inputs, plus a distinct retry-scheduled event for expired leases.
+- Latest GitHub Actions result for these source commits is not independently visible through the available Actions connector; CI must be treated as PENDING, not PASS.
+- Independent parallel-session concurrency/load tests, PostgreSQL adapter, distributed worker, scheduler, watchdog, alerting, kill switch, provider adapter, end-to-end checkout/payment and reconciliation remain NOT IMPLEMENTED.
+- Full audited archive import to `main`, browser visual QA and demand validation remain BLOCKED/NOT STARTED. Verified revenue remains INR 0.
