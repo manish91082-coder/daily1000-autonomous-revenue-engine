@@ -78,7 +78,7 @@ test('priority tasks are claimed before lower priority tasks', async () => {
 
 test('stale claim token cannot heartbeat or complete after same worker reclaims task', async () => {
   let now = 1000;
-  const f = await fixture({ leaseMs: 10, now: () => now });
+  const f = await fixture({ leaseMs: 10, retryBaseMs: 1, retryMaxMs: 1, random: () => 0, now: () => now });
   try {
     const t = await f.queue.enqueue({ type: 'echo', maxAttempts: 3 });
     const first = await f.queue.claim('reused-worker');
