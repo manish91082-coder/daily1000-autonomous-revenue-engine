@@ -9,17 +9,19 @@ class Orchestrator {
   async runOne(workerId = `worker-${process.pid}`) {
     const task = await this.queue.claim(workerId);
     if (!task) return { worked: false };
+    const leaseToken = task.lease_token;
+    const lease = { task, workerId, leaseToken, heartbeat: () => this.queue.heartbeat(task.id, workerId, leaseToken) };
     const handler = this.registry.get(task.type);
     if (!handler) {
-      await this.queue.fail(task.id, workerId, new Error(`No handler registered for task type: ${task.type}`));
-      return { worked: true, task_id: task.id, status: 'retry_or_failed', reason: 'handler_missing' };
+      const failed = await this.queue.fail(task.id, workerId, leaseToken, new Error(`No handler registered for task type: ${task.type}`));
+      return { worked: true, task_id: task.id, status: failed.status, reason: 'handler_missing' };
     }
     try {
-      const result = await handler(task.payload, { task, workerId, heartbeat: () => this.queue.heartbeat(task.id, workerId) });
-      const completed = await this.queue.complete(task.id, workerId, result ?? null);
+      const result = await handler(task.payload, lease);
+      const completed = await this.queue.complete(task.id, workerId, leaseToken, result ?? null);
       return { worked: true, task_id: task.id, status: completed.status, result: completed.result };
     } catch (error) {
-      const failed = await this.queue.fail(task.id, workerId, error);
+      const failed = await this.queue.fail(task.id, workerId, leaseToken, error);
       return { worked: true, task_id: task.id, status: failed.status, error: failed.last_error };
     }
   }
