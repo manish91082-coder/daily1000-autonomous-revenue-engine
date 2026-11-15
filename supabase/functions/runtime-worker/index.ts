@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { Pool } from "jsr:@db/postgres@0.19.3";
+import { Pool } from "jsr:@db/postgres@0.19.5";
 
 type Task = {
   id: string;
