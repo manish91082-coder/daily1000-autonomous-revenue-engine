@@ -54,3 +54,13 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 - Live PostgreSQL heartbeat test initially exposed an ambiguous attempt reference in the heartbeat audit insert. The SQL was corrected to qualify t.attempts, the function was replaced in the dedicated database, and the same live transaction test then passed.
 - Live heartbeat test also verified stale-token heartbeat rejection, max-attempt dead-letter transition, dead-letter event and lease-token clearing. The test transaction rolled back.
 - Project-wide PostgreSQL default function privileges were restored after review found that globally revoking PUBLIC EXECUTE would have changed defaults outside the private runtime schema. Canonical migration now limits default privilege changes to the private schema and relies on revoked schema usage plus explicit function grants.
+
+## Deployed cloud worker entrypoint
+
+- Supabase Edge Function slug: runtime-worker; deployed ACTIVE at version 3 with verify_jwt=true.
+- Worker accepts POST execution only when the verified JWT role is service_role. Ordinary authenticated users cannot consume internal queue work.
+- It connects to the private revenue_runtime schema through SUPABASE_DB_URL and a one-connection Deno Postgres pool, rather than exposing the schema through the Data API.
+- Only runtime.health_check is currently registered. Unknown task types are failed through the queue's normal retry/dead-letter path.
+- Function source and deno.json are versioned under supabase/functions/runtime-worker in the active branch. Driver pinned to jsr:@db/postgres@0.19.5.
+- Deployment is confirmed ACTIVE and source was read back from the project. No authenticated invocation has yet been executed; therefore function boot, direct DB connectivity and end-to-end queue processing remain NOT VERIFIED.
+- No scheduler invokes this worker automatically yet. It is an on-demand cloud execution endpoint, not a 24x7 supervisor.
