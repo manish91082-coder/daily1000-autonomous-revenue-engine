@@ -42,8 +42,3 @@ Import is complete only after the archive or its full source files are present i
 5. Run a small demand-validation experiment before treating pricing or revenue as proven.
 
 See `docs/QA_AND_RELEASE_GATES.md`, `docs/DEMAND_VALIDATION_PROTOCOL.md` and `docs/RELEASE_STATUS.md` for current acceptance gates and evidence standards.
-
-
-## Autonomous cloud runtime (separate from the app release)
-
-A dedicated Supabase control plane is now running for the mission. Its verified checkpoint, boundaries, and remaining gates are documented in [`docs/CLOUD_RUNTIME_CHECKPOINT_2026-11-15.md`](docs/CLOUD_RUNTIME_CHECKPOINT_2026-11-15.md). This does not mean the audited v0.1.2 source archive has been imported, nor that customer-facing hosting, business agents, payments, or revenue are live.
