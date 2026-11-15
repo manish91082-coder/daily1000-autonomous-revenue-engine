@@ -34,7 +34,7 @@ jobs:
             -H "Content-Type: application/json" \
             -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            --data "{\\"mode\\":\\"smoke_test\\",\\"idempotency_key\\":\\"$IDEMPOTENCY_KEY\\"}")"
+            --data "{\"mode\":\"smoke_test\",\"idempotency_key\":\"$IDEMPOTENCY_KEY\"}")"
           echo "$replay" > "$RUNNER_TEMP/runtime-smoke-replay.json"
           node -e '
             const fs = require("node:fs");
