@@ -6,7 +6,7 @@ Audit type: static source review; live database verification pending
 
 ## Decision
 
-**NOT APPROVED for production or multi-worker activation.** Per-claim fencing and retry scheduling have been added to the draft. The SQL has not been executed against PostgreSQL.
+**NOT APPROVED for production or multi-worker activation.** The queue migration is now applied to the dedicated Supabase project and a transactional integration test has passed. The adapter, independent concurrent-session test, worker runtime and operations layer remain unimplemented.
 
 ## Remediation state
 
@@ -22,13 +22,13 @@ Audit type: static source review; live database verification pending
 - Heartbeat lease duration is bounded to 5..3600 seconds.
 - PUBLIC, anon and authenticated are revoked from schema/table/function access.
 - service_role is granted backend access as a server-side-only role.
-- Effective permissions and Data API exposure are not verified. Never expose service_role credentials to a browser.
+- Live catalog checks confirm no schema usage or table SELECT for anon/authenticated; service_role has schema/table access. Explicit deny-all RLS policies exist for anon/authenticated. Security Advisor now reports no lints. Never expose service_role credentials to a browser.
 
 ### P1 - Retry scheduling
 - Runtime: configurable exponential cap with full jitter, retry availability timestamp and event records.
 - Expired runtime leases invalidate tokens and schedule retry or dead-letter at attempt exhaustion.
 - SQL draft: jittered exponential retry delay for explicit failure and lease expiry.
-- Live SQL semantics, concurrency and event consistency remain unverified.
+- Live PostgreSQL integration test passed for claim, valid/stale-token completion, explicit failure retry, lease-token clearing, expired-lease retry events and reclaim. The test ran in a rollback transaction. Independent simultaneous-session race testing remains open.
 
 ### P2 - Operational completeness
 No cloud scheduler, worker supervisor, watchdog, alerting, kill switch, budget enforcement, agent sandbox, provider adapter, or external side-effect reconciliation exists. Exactly-once external effects are not guaranteed.
@@ -37,10 +37,10 @@ No cloud scheduler, worker supervisor, watchdog, alerting, kill switch, budget e
 
 - Earlier GitHub CI run #43735742707 passed before the latest fencing/retry changes.
 - Latest fencing/retry commits require a fresh CI result; do not infer PASS from earlier runs.
-- PostgreSQL migration not applied.
-- Live PostgreSQL integration/concurrency tests not run.
-- Supabase advisors not run on a dedicated project.
-- Multi-worker correctness NOT VERIFIED.
+- Migration applied to dedicated project `vpuuotssufznyjgtubuz` (Postgres 17.11, Mumbai region).
+- Live transactional integration test: PASS for tested flows; no parallel-session concurrency race test yet.
+- Supabase Security Advisor: no lints after explicit deny-all policies; Performance and Health advisors: no lints.
+- Multi-worker correctness NOT VERIFIED; SQL `SKIP LOCKED` semantics still need independent concurrent-connection load tests.
 - Production readiness NO.
 
 ## Release gate
