@@ -206,15 +206,23 @@ Deno.serve(async (req: Request) => {
     try { await connection.queryArray`rollback`; } catch { /* transaction may already be closed */ }
     if (task) {
       const message = String(error instanceof Error ? error.message : error).slice(0, 1000);
-      const failed = await connection.queryObject<StatusResult["rows"][number]>`
-        select revenue_runtime.fail_task(
-          ${task.id}::uuid, ${workerId}, ${task.lease_token}::uuid, ${message}, 30
-        ) as status
-      `;
-      if (!failed.rows[0]?.status) return json({ error: "handler_and_failure_recording_failed", task_id: task.id }, 500);
-      return json({ worker_id: workerId, worked: true, task_id: task.id, status: failed.rows[0].status }, 500);
+      try {
+        const failed = await connection.queryObject<StatusResult["rows"][number]>`
+          select revenue_runtime.fail_task(
+            ${task.id}::uuid, ${workerId}, ${task.lease_token}::uuid, ${message}, 30
+          ) as status
+        `;
+        if (!failed.rows[0]?.status) {
+          return json({ error: "failure_recording_rejected", task_id: task.id }, 500);
+        }
+        return json({ worker_id: workerId, worked: true, task_id: task.id, status: failed.rows[0].status }, 500);
+      } catch {
+        // Preserve the original failure boundary; lease expiry recovery remains the final safety net.
+        return json({ error: "failure_recording_unavailable", task_id: task.id }, 500);
+      }
     }
-    return json({ error: "claim_failed", detail: String(error instanceof Error ? error.message : error).slice(0, 1000) }, 500);
+    // Do not return raw database/driver errors to an authenticated caller.
+    return json({ error: "claim_failed" }, 500);
   } finally {
     connection.release();
   }
