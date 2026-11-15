@@ -116,3 +116,12 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 - The manual GitHub smoke workflow now requires exactly one of each event on the first execution and the same counts on replay, alongside stable task ID and result assertions.
 - Added source contract coverage for the audit query and response.
 - These are source-level and CI gates. They do not represent a live authenticated execution; the live queue remains empty until the protected workflow is actually invoked.
+
+
+## 15 Nov 2026 PR security review correction
+
+- Reviewed the complete PR diff and the authenticated Edge Function, PostgreSQL queue adapter, worker loop, CI workflow, and smoke workflow.
+- Found a failure-path weakness: if the attempt to record a task failure itself threw, the exception could escape the handler; the claim error response also included raw database/driver detail.
+- Corrected the failure-recording branch to contain secondary errors, return bounded generic error codes, and rely on lease-expiry recovery if failure recording is unavailable.
+- Added source-contract coverage for the failure-path boundary and error sanitization.
+- This is a code-review correction, not evidence of a live fault-injection run. CI and live invocation remain separate gates.
