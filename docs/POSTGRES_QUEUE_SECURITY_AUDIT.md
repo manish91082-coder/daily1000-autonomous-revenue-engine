@@ -46,3 +46,10 @@ No cloud scheduler, worker supervisor, watchdog, alerting, kill switch, budget e
 ## Release gate
 
 Require current CI success, a dedicated project, executed migration, live concurrent-claim/stale-token/lease-expiry/retry tests, effective privilege inspection, and security advisor review before enabling distributed workers.
+
+## 15 Nov 2026 follow-up audit
+
+- A live heartbeat test found a PL/pgSQL ambiguity in the heartbeat audit insert (attempt target column vs source column). Fixed by qualifying t.id and t.attempts; function replaced in the dedicated project and the live test passed.
+- Valid heartbeat accepted; stale-token heartbeat rejected; max-attempt failure dead-lettered; lease token cleared; all verified in a rollback-scoped transaction.
+- A review identified that globally revoking default PUBLIC function EXECUTE for role postgres would affect future functions across the entire project. That project-wide default change was reversed. The canonical migration now only adjusts defaults in revenue_runtime; schema usage remains revoked for client roles and explicit function grants are applied.
+- CI remains pending for the newest commits; static tests have been added but not executed in this environment.
