@@ -118,3 +118,5 @@ A direct archive upload through an explicitly supplied file attachment, or a use
 - Added adapter contract tests and worker-loop tests. They are included in the branch CI workflow, but the latest push-triggered CI run cannot currently be retrieved through the available GitHub Actions connector. CI status is PENDING.
 - Targeted two-session database probe: two concurrent claim calls held transactions open and returned different task IDs. This is a narrow concurrency PASS, not a production load test.
 - No live end-to-end Node adapter-to-Postgres test has been run because no runtime database connection string has been configured in the execution environment. The SQL-level tests above were run through the database connector.
+
+- Hardened default privileges for future objects in the private schema: global function EXECUTE is revoked from PUBLIC for the migration owner, and anon/authenticated default access to private-schema functions, tables and sequences is revoked. Live privilege query confirms anon cannot execute the claim function while service_role can.
