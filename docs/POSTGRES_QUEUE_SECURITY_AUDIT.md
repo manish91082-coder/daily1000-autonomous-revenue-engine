@@ -56,3 +56,6 @@ Require current CI success, a dedicated project, executed migration, live concur
 
 - Edge worker is configured to use the platform-provided SUPABASE_DB_URL with a one-connection Deno Postgres pool, avoiding the need to expose the private queue schema through the Data API. The endpoint has JWT verification enabled and additionally requires the verified service_role claim.
 - Deployment is ACTIVE (version 3) and source was read back. Invocation and direct database connectivity are still unverified.
+
+- Strict expiry fencing now applies to heartbeat, complete and fail: matching worker/token is insufficient once lease_expires_at has passed.
+- Live PostgreSQL rollback test confirmed expired heartbeat and completion return false and expired failure returns lease_not_owned. This closes the stale-worker mutation window before a new claim is made.
