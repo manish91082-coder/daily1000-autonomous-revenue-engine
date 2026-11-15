@@ -48,10 +48,39 @@ Deno.serve(async (req: Request) => {
   if (jwtRole(req) !== "service_role") return json({ error: "service_role_required" }, 403);
   if (!pool) return json({ error: "database_environment_incomplete" }, 503);
 
+  let requestBody: { mode?: string; idempotency_key?: string };
+  try {
+    requestBody = await req.json();
+  } catch {
+    return json({ error: "invalid_json" }, 400);
+  }
+  if (requestBody.mode !== "smoke_test") {
+    return json({ error: "unsupported_mode", allowed_modes: ["smoke_test"] }, 400);
+  }
+  const idempotencyKey = requestBody.idempotency_key;
+  if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{8,180}$/.test(idempotencyKey)) {
+    return json({ error: "invalid_idempotency_key" }, 400);
+  }
+
   const workerId = `edge-worker-${crypto.randomUUID()}`;
   const connection = await pool.connect();
   let task: Task | null = null;
   try {
+    await connection.queryArray`begin`;
+    const queued = await connection.queryObject<{ id: string }>`
+      insert into revenue_runtime.tasks
+        (task_type, payload, idempotency_key, priority, max_attempts)
+      values ('runtime.health_check', '{}'::jsonb, ${idempotencyKey}, 100, 1)
+      on conflict (idempotency_key) do nothing
+      returning id
+    `;
+    if (queued.rows[0]) {
+      await connection.queryArray`
+        insert into revenue_runtime.task_events(task_id, event_type, detail)
+        values (${queued.rows[0].id}::uuid, 'task.queued', '{"source":"authenticated_smoke_test"}'::jsonb)
+      `;
+    }
+    await connection.queryArray`commit`;
     const claimed = await connection.queryObject<Task>`select * from revenue_runtime.claim_task(${workerId}, 60)`;
     task = claimed.rows[0] ?? null;
     if (!task) return json({ worker_id: workerId, worked: false, status: "idle" });
