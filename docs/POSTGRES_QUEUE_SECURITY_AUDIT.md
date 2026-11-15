@@ -53,3 +53,6 @@ Require current CI success, a dedicated project, executed migration, live concur
 - Valid heartbeat accepted; stale-token heartbeat rejected; max-attempt failure dead-lettered; lease token cleared; all verified in a rollback-scoped transaction.
 - A review identified that globally revoking default PUBLIC function EXECUTE for role postgres would affect future functions across the entire project. That project-wide default change was reversed. The canonical migration now only adjusts defaults in revenue_runtime; schema usage remains revoked for client roles and explicit function grants are applied.
 - CI remains pending for the newest commits; static tests have been added but not executed in this environment.
+
+- Edge worker is configured to use the platform-provided SUPABASE_DB_URL with a one-connection Deno Postgres pool, avoiding the need to expose the private queue schema through the Data API. The endpoint has JWT verification enabled and additionally requires the verified service_role claim.
+- Deployment is ACTIVE (version 3) and source was read back. Invocation and direct database connectivity are still unverified.
