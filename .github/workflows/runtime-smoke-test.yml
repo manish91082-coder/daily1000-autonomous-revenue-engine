@@ -29,12 +29,25 @@ jobs:
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             --data "{\"mode\":\"smoke_test\",\"idempotency_key\":\"$IDEMPOTENCY_KEY\"}")"
           echo "$response" > "$RUNNER_TEMP/runtime-smoke-response.json"
+          replay="$(curl --fail-with-body --silent --show-error --max-time 45 \
+            -X POST "${SUPABASE_URL%/}/functions/v1/runtime-worker" \
+            -H "Content-Type: application/json" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --data "{\\"mode\\":\\"smoke_test\\",\\"idempotency_key\\":\\"$IDEMPOTENCY_KEY\\"}")"
+          echo "$replay" > "$RUNNER_TEMP/runtime-smoke-replay.json"
           node -e '
             const fs = require("node:fs");
-            const r = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-            if (r.worked !== true || r.status !== "succeeded" || !r.task_id || r.result?.ok !== true) {
-              console.error("Runtime smoke test did not prove task completion:", r);
+            const first = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            const replay = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+            if (first.worked !== true || first.status !== "succeeded" || !first.task_id || first.result?.ok !== true) {
+              console.error("Runtime smoke test did not prove task completion:", first);
               process.exit(1);
             }
-            console.log(JSON.stringify({worked:r.worked,status:r.status,task_id:r.task_id,result:r.result}, null, 2));
-          ' "$RUNNER_TEMP/runtime-smoke-response.json"
+            if (replay.status !== "succeeded" || replay.task_id !== first.task_id ||
+                replay.idempotent_replay !== true || JSON.stringify(replay.result) !== JSON.stringify(first.result)) {
+              console.error("Idempotent replay did not return the original task result:", {first, replay});
+              process.exit(1);
+            }
+            console.log(JSON.stringify({first:{status:first.status,task_id:first.task_id}, replay:{status:replay.status,task_id:replay.task_id,idempotent_replay:replay.idempotent_replay}}, null, 2));
+          ' "$RUNNER_TEMP/runtime-smoke-response.json" "$RUNNER_TEMP/runtime-smoke-replay.json"
