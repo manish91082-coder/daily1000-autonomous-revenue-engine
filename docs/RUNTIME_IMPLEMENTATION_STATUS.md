@@ -13,7 +13,7 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 - Bounded exponential retry scheduling with full jitter, configurable base/cap, and availability-time filtering.
 - Lease expiry invalidates the old token, records expiry, schedules a jittered retry, or dead-letters at attempt exhaustion.
 - Runtime tests cover restart persistence, idempotency, handler execution, retry exhaustion, lease recovery delay, worker ownership, priority, stale-token fencing, missing tokens, exponential cap and jitter.
-- PostgreSQL draft now includes UUID fencing, bounded heartbeat duration, least-privilege role baseline and jittered retry scheduling for explicit failures and expired leases.
+- PostgreSQL queue is applied to the dedicated project; a Pool-compatible adapter (`runtime/postgres-queue.js`), PostgreSQL runtime factory, and generic graceful polling loop (`runtime/worker-loop.js`) are now committed. The adapter uses transactional enqueue plus an audit event and database functions for claim/heartbeat/complete/fail.
 
 ## Verification
 
@@ -32,7 +32,7 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 
 ## Next engineering gate
 
-1. Confirm GitHub CI for the latest commits.
+1. Confirm GitHub CI for the latest commits (connector currently exposes no push-run record; status remains pending).
 2. Run independent-session concurrency/load tests against the dedicated project.
 3. Implement a PostgreSQL adapter and distributed worker.
 4. Add scheduler, worker supervisor, watchdog, alerting, kill switch and failure-injection tests.
@@ -41,7 +41,7 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 ## Mission status
 
 - Runtime prototype: implemented; latest CI verification pending.
-- Multi-worker correctness: NOT VERIFIED.
+- Two independent simultaneous SQL sessions claimed different tasks during a lock-hold probe, supporting `SKIP LOCKED` behavior for that test case. Broader stress/race testing remains NOT VERIFIED.
 - Cloud 24x7 execution: NOT IMPLEMENTED.
 - Product public release: NOT READY.
 - Demand validation: NOT STARTED.
