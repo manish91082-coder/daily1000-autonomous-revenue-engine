@@ -54,6 +54,9 @@ Deno.serve(async (req: Request) => {
   } catch {
     return json({ error: "invalid_json" }, 400);
   }
+  if (!requestBody || typeof requestBody !== "object" || Array.isArray(requestBody)) {
+    return json({ error: "invalid_request_body" }, 400);
+  }
   if (requestBody.mode !== "smoke_test") {
     return json({ error: "unsupported_mode", allowed_modes: ["smoke_test"] }, 400);
   }
