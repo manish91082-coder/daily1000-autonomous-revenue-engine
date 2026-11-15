@@ -76,12 +76,12 @@ test('expired leases emit a retry-scheduled event when attempts remain', () => {
   assert.match(sql, /from expired where status = 'queued'/i);
 });
 
-test('future private-schema objects do not inherit client execution or table access', () => {
-  assert.match(sql, /alter default privileges for role postgres\s+revoke execute on functions from public/i);
-  assert.match(sql, /alter default privileges for role postgres in schema revenue_runtime\s+revoke execute on functions from anon, authenticated/i);
-  assert.match(sql, /alter default privileges for role postgres in schema revenue_runtime\s+revoke all on tables from public, anon, authenticated/i);
+test('private schema defaults revoke client roles without changing project-wide function defaults', () => {
+  assert.doesNotMatch(sql, /alter default privileges for role postgres\\s+revoke execute on functions from public/i);
+  assert.match(sql, /alter default privileges for role postgres in schema revenue_runtime\\s+revoke execute on functions from anon, authenticated/i);
+  assert.match(sql, /alter default privileges for role postgres in schema revenue_runtime\\s+revoke all on tables from public, anon, authenticated/i);
+  assert.match(sql, /revoke all on schema revenue_runtime from public, anon, authenticated/i);
 });
-
 test('private queue tables include explicit deny policies for Data API client roles', () => {
   assert.match(sql, /create policy deny_client_access_tasks[\s\S]*to anon, authenticated[\s\S]*using \(false\)[\s\S]*with check \(false\)/i);
   assert.match(sql, /create policy deny_client_access_task_events[\s\S]*to anon, authenticated[\s\S]*using \(false\)[\s\S]*with check \(false\)/i);
