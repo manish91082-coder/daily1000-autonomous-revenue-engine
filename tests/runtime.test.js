@@ -97,3 +97,36 @@ test('lease token is required for all lease mutations', async () => {
     await assert.rejects(() => f.queue.fail(t.task.id, 'worker-a', undefined, new Error('forged')), /not owned/);
   } finally { await f.cleanup(); }
 });
+
+test('retry backoff grows exponentially and is capped with full jitter', async () => {
+  let now = 5000;
+  const f = await fixture({ now: () => now, retryBaseMs: 100, retryMaxMs: 250, random: () => 1 });
+  try {
+    const t = await f.queue.enqueue({ type: 'retry-me', maxAttempts: 4 });
+    const first = await f.queue.claim('w');
+    const r1 = await f.queue.fail(t.task.id, 'w', first.lease_token, new Error('first'));
+    assert.equal(r1.available_at, now + 100);
+    assert.equal((await f.queue.claim('w')), null);
+    now += 100;
+    const second = await f.queue.claim('w');
+    const r2 = await f.queue.fail(t.task.id, 'w', second.lease_token, new Error('second'));
+    assert.equal(r2.available_at, now + 200);
+    now += 200;
+    const third = await f.queue.claim('w');
+    const r3 = await f.queue.fail(t.task.id, 'w', third.lease_token, new Error('third'));
+    assert.equal(r3.available_at, now + 250);
+    const state = await f.store.read();
+    assert.equal(state.events.filter(e => e.event === 'task.retry_scheduled').length, 3);
+  } finally { await f.cleanup(); }
+});
+test('retry jitter is bounded and can schedule immediate retry at zero', async () => {
+  let now = 9000;
+  const f = await fixture({ now: () => now, retryBaseMs: 100, retryMaxMs: 500, random: () => 0 });
+  try {
+    const t = await f.queue.enqueue({ type: 'jitter', maxAttempts: 2 });
+    const claim = await f.queue.claim('w');
+    const retry = await f.queue.fail(t.task.id, 'w', claim.lease_token, new Error('retry'));
+    assert.equal(retry.available_at, now);
+    assert.equal((await f.queue.claim('w')).id, t.task.id);
+  } finally { await f.cleanup(); }
+});
