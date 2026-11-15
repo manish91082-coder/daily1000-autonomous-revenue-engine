@@ -3,61 +3,52 @@
 Date: 2026-11-15
 Branch: source-import/v0.1.2
 Target: database/postgres_queue.sql
-Audit type: static source review only; no live database execution
+Audit type: static source review; live database execution pending
 
 ## Decision
 
-**NOT APPROVED for production or multi-worker activation.** The SQL is a useful draft, but static contract tests do not establish runtime correctness, access control, or concurrency safety.
+**NOT APPROVED for production or multi-worker activation.** The first source-level corrections are implemented, but static contract tests do not establish runtime correctness, effective database permissions, or concurrency safety.
 
-## Findings
+## Findings and remediation state
 
-### P0 - Claim fencing is insufficient
-The queue identifies a lease by `lease_owner` only. If a worker process reuses the same worker ID, an old/stale execution may be able to heartbeat or complete a task after the task has expired and been reclaimed by that same worker identity. A worker identity is not a per-claim fencing token.
+### P0 - Per-claim lease fencing
+**Source correction implemented; live verification pending.**
+- Each claim assigns a fresh UUID lease token.
+- Heartbeat, completion, and failure require both worker identity and exact lease token.
+- Lease token is cleared on expiry and terminal/retry transition.
+- Local runtime prototype uses a fresh 256-bit random token per claim and constant-time comparison.
+- Runtime tests now cover stale-token heartbeat/completion after the same worker ID reclaims the task.
+- PostgreSQL contract tests assert token issuance and validation. They do not execute PostgreSQL.
 
-Required correction:
-- Generate a fresh, unpredictable lease token for every successful claim.
-- Store it on the task row and require the exact token for heartbeat, completion, and failure.
-- Clear the token on lease release/expiry.
-- Test stale-token heartbeat/complete/fail after re-claim, including the same worker ID.
+### P1 - Heartbeat input validation
+**Source correction partially implemented; live verification pending.**
+- SQL heartbeat bounds lease duration to 5..3600 seconds and requires worker identity/token.
+- Invalid UUID/null task inputs and database exception behaviour still need integration tests.
 
-### P1 - Heartbeat input validation is incomplete
-`claim_task` bounds lease duration, but `heartbeat_task` does not. A caller may request a negative or excessively long lease duration.
+### P1 - Function execution and privilege model
+**Baseline grants added; live privilege verification pending.**
+- The schema remains outside public.
+- PUBLIC, anon, and authenticated are denied schema/table/function access.
+- service_role is granted schema usage, table access, sequence access, and function execution.
+- This is a Supabase-oriented server-side baseline, not proof that effective grants are correct. Never expose service_role credentials to browser/client code.
+- Verify Data API exposure, role grants, RLS behaviour, and security advisors on a dedicated project.
 
-Required correction:
-- Apply the same 5..3600 second bound in heartbeat.
-- Reject null task IDs, blank worker identities/tokens, and invalid lease durations explicitly.
-- Add SQL integration tests for boundary and invalid values.
-
-### P1 - Function execution and privilege model is unspecified
-The draft enables RLS on the two tables but does not define grants, function execute privileges, or an explicit caller model. RLS alone is not a complete authorization design. The functions are not declared SECURITY DEFINER, which may be correct for a tightly controlled backend role, but the required schema/table/function privileges have not been specified or verified.
-
-Required correction:
-- Keep the schema outside exposed Data API schemas.
-- Define a dedicated backend role and least-privilege grants.
-- Revoke default PUBLIC execute on queue functions; grant only to the intended backend role.
-- Do not grant anon/authenticated access to queue tables or worker functions.
-- If SECURITY DEFINER is ever chosen, pin a safe search_path, validate all inputs, and audit ownership/privileges.
-- Verify effective privileges and Supabase security advisors on a dedicated project.
-
-### P1 - Retry and event semantics need stronger invariants
-Expired leases are requeued immediately, without backoff, while explicit failures can set a retry delay. Repeated worker crashes can therefore create rapid reclaim loops. The expiry path also retains the prior last_error when present, which may obscure the latest expiry reason.
-
-Required correction:
-- Define bounded exponential backoff with jitter or a deterministic bounded backoff policy.
-- Record lease-expiry attempt number and reason distinctly.
-- Ensure terminal failure and retry transitions are atomic and covered by integration tests.
+### P1 - Retry and event semantics
+**Open.**
+- Expired leases are still requeued immediately.
+- Bounded exponential backoff/jitter and stale error replacement need implementation.
+- Failure and expiry paths require live integration tests.
 
 ### P2 - Operational completeness
-The SQL does not provide a scheduler, worker supervisor, watchdog, alerting, kill switch, budget enforcement, or external side-effect reconciliation. It does not provide exactly-once effects.
-
-Required correction:
-- Add supervised workers, health checks, bounded concurrency, queue-age alerts, dead-letter review, and an emergency pause.
-- Use provider-side idempotency keys and reconciliation for every external side effect.
-- Require approval for money movement, spending, refunds, KYC, legal commitments, and sensitive account changes.
+**Open.**
+- No scheduler, worker supervisor, watchdog, alerting, kill switch, budget enforcement, or external side-effect reconciliation exists yet.
+- Exactly-once external effects are not guaranteed.
+- Use provider-side idempotency and reconciliation; require human approval for spending, transfers, refunds, KYC, legal commitments, and sensitive account changes.
 
 ## Verification state
 
-- GitHub CI run #43735742707: job `test` completed successfully; npm tests and both JavaScript syntax checks passed.
+- Previous GitHub CI run #43735742707 passed before the fencing changes.
+- New fencing changes have been committed; CI for the latest commit must be checked independently.
 - PostgreSQL SQL: not applied to any database.
 - PostgreSQL runtime/concurrency tests: not run.
 - Supabase advisors: not run for this mission's dedicated project.
@@ -66,4 +57,4 @@ Required correction:
 
 ## Release gate
 
-Do not connect cloud workers or mark the queue production-ready until the P0 fencing correction, P1 privilege/validation corrections, live PostgreSQL migration, concurrent claim tests, lease-expiry tests, stale-token tests, retry/dead-letter tests, and security advisor review all pass on a dedicated project.
+Do not connect cloud workers or mark the queue production-ready until CI passes for the fencing changes, the SQL is applied to a dedicated project, concurrent claim/stale-token/lease-expiry/retry tests pass against real PostgreSQL, effective permissions are inspected, and security advisors are reviewed.
