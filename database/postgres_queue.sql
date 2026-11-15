@@ -101,8 +101,8 @@ begin
     from revenue_runtime.tasks t
    where t.status = 'queued' and t.available_at <= now()
    order by t.priority desc, t.available_at asc, t.created_at asc
-   for update skip locked
-   limit 1;
+   limit 1
+   for update skip locked;
 
   if not found then
     return;
