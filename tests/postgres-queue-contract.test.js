@@ -75,3 +75,9 @@ test('expired leases emit a retry-scheduled event when attempts remain', () => {
   assert.match(sql, /select id, 'task\.retry_scheduled', attempts/i);
   assert.match(sql, /from expired where status = 'queued'/i);
 });
+
+test('future private-schema objects do not inherit client execution or table access', () => {
+  assert.match(sql, /alter default privileges for role postgres\s+revoke execute on functions from public/i);
+  assert.match(sql, /alter default privileges for role postgres in schema revenue_runtime\s+revoke execute on functions from anon, authenticated/i);
+  assert.match(sql, /alter default privileges for role postgres in schema revenue_runtime\s+revoke all on tables from public, anon, authenticated/i);
+});
