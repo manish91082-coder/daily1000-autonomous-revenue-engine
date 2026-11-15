@@ -1,5 +1,5 @@
--- DESIGN DRAFT: transactional PostgreSQL queue for the autonomous revenue runtime.
--- Not applied to any live database. Review and deploy only to a dedicated project.
+-- Canonical migration source: transactional PostgreSQL queue for the autonomous revenue runtime.
+-- Applied to the dedicated Supabase project; reapply only through versioned migrations.
 -- Keep this schema outside Supabase's exposed public schema.
 
 create schema if not exists revenue_runtime;
