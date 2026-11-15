@@ -11,7 +11,7 @@ test('edge worker requires platform JWT verification and service_role authorizat
 });
 
 test('edge worker accesses the private schema through direct PostgreSQL, not Data API', () => {
-  assert.match(source, /revenue_runtime\.claim_task/);
+  assert.match(source, /where idempotency_key = \$\{idempotencyKey\}[\s\S]*for update/);
   assert.match(source, /revenue_runtime\.complete_task/);
   assert.match(source, /revenue_runtime\.fail_task/);
   assert.doesNotMatch(source, /createClient\(/);
