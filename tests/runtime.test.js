@@ -135,3 +135,32 @@ test('retry jitter is bounded and can schedule immediate retry at zero', async (
     assert.equal((await f.queue.claim('w')).id, t.task.id);
   } finally { await f.cleanup(); }
 });
+
+test('orchestrator automatically renews a lease during a long-running handler', async () => {
+  const f = await fixture({ leaseMs: 30 });
+  try {
+    let heartbeatCount = 0;
+    const originalHeartbeat = f.queue.heartbeat.bind(f.queue);
+    f.queue.heartbeat = async (...args) => {
+      heartbeatCount += 1;
+      return originalHeartbeat(...args);
+    };
+    f.orchestrator.register('slow', async () => {
+      await new Promise(resolve => setTimeout(resolve, 75));
+      return { completed: true };
+    });
+    const task = await f.queue.enqueue({ type: 'slow' });
+    const result = await f.orchestrator.runOne('long-worker');
+    assert.equal(result.status, 'succeeded');
+    assert.ok(heartbeatCount >= 1, 'at least one heartbeat must run before handler completion');
+    assert.equal((await f.queue.get(task.task.id)).status, 'succeeded');
+  } finally { await f.cleanup(); }
+});
+
+test('orchestrator rejects invalid heartbeat interval configuration', async () => {
+  const f = await fixture();
+  try {
+    const { Orchestrator } = require('../runtime/orchestrator');
+    assert.throws(() => new Orchestrator(f.queue, {}, { heartbeatIntervalMs: 1 }), /heartbeatIntervalMs/);
+  } finally { await f.cleanup(); }
+});
