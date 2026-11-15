@@ -54,3 +54,10 @@ test('heartbeat lease duration is bounded and public API roles are denied', () =
   assert.match(sql, /revoke all on schema revenue_runtime from public, anon, authenticated/i);
   assert.match(sql, /grant usage on schema revenue_runtime to service_role/i);
 });
+
+test('PostgreSQL retry and expired-lease paths schedule bounded jittered backoff', () => {
+  assert.match(sql, /random\(\) \* least\(86400::numeric/i);
+  assert.match(sql, /power\(2::numeric, greatest\(0/i);
+  assert.match(sql, /available_at = case when t\.attempts >= t\.max_attempts/i);
+  assert.match(sql, /available_at = case when attempts >= max_attempts/i);
+});
