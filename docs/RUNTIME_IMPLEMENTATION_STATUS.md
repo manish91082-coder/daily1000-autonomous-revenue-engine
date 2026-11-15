@@ -6,37 +6,37 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 
 ## Implemented
 
-- `runtime/state-store.js`: versioned JSON state file, schema checks, atomic temp-file replacement.
-- `runtime/task-queue.js`: enqueue, idempotency, priority, worker leases, 256-bit per-claim fencing tokens, constant-time token comparison, heartbeat, bounded attempts, retry state, terminal failure/dead-letter event.
-- `runtime/orchestrator.js`: passes the exact claim token into handler context and uses it for heartbeat/completion/failure.
-- `runtime/index.js`: runtime factory and public exports.
-- `tests/runtime.test.js`: nine tests including same-worker stale-token rejection and missing-token rejection.
-- `database/postgres_queue.sql`: per-claim UUID fencing, exact-token checks for heartbeat/completion/failure, heartbeat lease bounds, and Supabase-oriented role grants.
-- `tests/postgres-queue-contract.test.js`: static contract checks for token fencing and privilege boundaries.
+- Single-process JSON runtime with explicit single-process-only safety boundary.
+- Task enqueue, idempotency, priority ordering and durable local state.
+- 256-bit per-claim lease tokens, constant-time token comparison and stale-claim rejection.
+- Orchestrator propagates the claim token into handler context.
+- Bounded exponential retry scheduling with full jitter, configurable base/cap, and availability-time filtering.
+- Lease expiry invalidates the old token, records expiry, schedules a jittered retry, or dead-letters at attempt exhaustion.
+- Runtime tests cover restart persistence, idempotency, handler execution, retry exhaustion, lease recovery delay, worker ownership, priority, stale-token fencing, missing tokens, exponential cap and jitter.
+- PostgreSQL draft now includes UUID fencing, bounded heartbeat duration, least-privilege role baseline and jittered retry scheduling for explicit failures and expired leases.
 
 ## Verification
 
-- Earlier baseline GitHub Actions run #43735742707 passed before the latest fencing commits.
-- Latest fencing commits: runtime queue, orchestrator, runtime tests, SQL, SQL contract tests.
-- CI for the latest fencing commit: pending independent verification.
+- Previous CI run #43735742707 passed before the recent fencing and retry commits.
+- New fencing/retry changes are committed to this branch; latest CI result must be independently confirmed before claiming PASS.
 - PostgreSQL SQL has NOT been applied to a database. Static contract tests are not live SQL execution.
+- No live concurrency, stale-token or permission integration tests have run.
 
 ## Critical limitations
 
-- JSON state transactions are single-process only; concurrent processes/workers can race.
-- PostgreSQL lease fencing is a source-level draft, not live-verified.
-- Immediate requeue after lease expiry remains; bounded exponential backoff/jitter is still needed.
+- JSON state transactions are single-process only and are not safe for multiple cloud workers.
+- PostgreSQL queue and grants are source-level drafts, not live-verified.
+- SQL retry scheduling uses database random jitter; actual database semantics and concurrency need live integration tests.
 - No live DB adapter, distributed worker, cloud scheduler, worker supervisor, watchdog, monitoring, alert delivery, kill switch, agent sandbox, provider adapter, or budget enforcement.
 - External side effects require provider-side idempotency and reconciliation; exactly-once effects are not guaranteed.
 
 ## Next engineering gate
 
-1. Obtain CI success for all fencing commits.
-2. Complete retry backoff and expiry-event semantics.
-3. Create/authorize a dedicated database project, apply migration, inspect grants and advisors.
-4. Implement the PostgreSQL adapter and integration/concurrency tests.
-5. Add supervised cloud workers, scheduler, watchdog, alerts, kill switch, and failure-injection tests.
-6. Only then proceed to the agent swarm and product-to-payment pipeline.
+1. Confirm GitHub CI for the latest commits.
+2. Execute SQL integration and concurrency tests against a dedicated project after explicit project authorization.
+3. Implement a PostgreSQL adapter and distributed worker.
+4. Add scheduler, worker supervisor, watchdog, alerting, kill switch and failure-injection tests.
+5. Only then activate agent swarm and product-to-payment pipeline.
 
 ## Mission status
 
