@@ -40,12 +40,14 @@ jobs:
             const fs = require("node:fs");
             const first = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
             const replay = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
-            if (first.worked !== true || first.status !== "succeeded" || !first.task_id || first.result?.ok !== true) {
+            if (first.worked !== true || first.status !== "succeeded" || !first.task_id || first.result?.ok !== true ||
+                first.audit?.queued !== 1 || first.audit?.claimed !== 1 || first.audit?.succeeded !== 1) {
               console.error("Runtime smoke test did not prove task completion:", first);
               process.exit(1);
             }
             if (replay.status !== "succeeded" || replay.task_id !== first.task_id ||
                 replay.idempotent_replay !== true || replay.result?.ok !== true ||
+                replay.audit?.queued !== 1 || replay.audit?.claimed !== 1 || replay.audit?.succeeded !== 1 ||
                 replay.result?.task_id !== first.task_id || replay.result?.checked_at !== first.result.checked_at) {
               console.error("Idempotent replay did not return the original task result:", {first, replay});
               process.exit(1);
