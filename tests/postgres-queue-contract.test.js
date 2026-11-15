@@ -81,3 +81,8 @@ test('future private-schema objects do not inherit client execution or table acc
   assert.match(sql, /alter default privileges for role postgres in schema revenue_runtime\s+revoke execute on functions from anon, authenticated/i);
   assert.match(sql, /alter default privileges for role postgres in schema revenue_runtime\s+revoke all on tables from public, anon, authenticated/i);
 });
+
+test('private queue tables include explicit deny policies for Data API client roles', () => {
+  assert.match(sql, /create policy deny_client_access_tasks[\s\S]*to anon, authenticated[\s\S]*using \(false\)[\s\S]*with check \(false\)/i);
+  assert.match(sql, /create policy deny_client_access_task_events[\s\S]*to anon, authenticated[\s\S]*using \(false\)[\s\S]*with check \(false\)/i);
+});
