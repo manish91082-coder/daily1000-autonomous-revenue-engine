@@ -164,3 +164,17 @@ test('orchestrator rejects invalid heartbeat interval configuration', async () =
     assert.throws(() => new Orchestrator(f.queue, {}, { heartbeatIntervalMs: 1 }), /heartbeatIntervalMs/);
   } finally { await f.cleanup(); }
 });
+
+test('expired lease cannot heartbeat, complete, or fail before another worker reclaims it', async () => {
+  let now = 5000;
+  const f = await fixture({ leaseMs: 20, now: () => now });
+  try {
+    const queued = await f.queue.enqueue({ type: 'lease-expiry', maxAttempts: 3 });
+    const claimed = await f.queue.claim('worker-a');
+    now += 21;
+    await assert.rejects(() => f.queue.heartbeat(queued.task.id, 'worker-a', claimed.lease_token), /not owned/);
+    await assert.rejects(() => f.queue.complete(queued.task.id, 'worker-a', claimed.lease_token, { stale: true }), /not owned/);
+    await assert.rejects(() => f.queue.fail(queued.task.id, 'worker-a', claimed.lease_token, new Error('stale')), /not owned/);
+    assert.equal((await f.queue.get(queued.task.id)).status, 'running');
+  } finally { await f.cleanup(); }
+});
