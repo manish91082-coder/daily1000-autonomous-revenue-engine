@@ -229,9 +229,8 @@ create policy deny_client_access_task_events
   with check (false);
 
 -- Lock down future objects created by the migration owner in this private schema.
--- PostgreSQL grants EXECUTE to PUBLIC globally by default, so revoke globally.
-alter default privileges for role postgres
-  revoke execute on functions from public;
+-- Do not change global default privileges for the project. The schema is private,
+-- and existing functions receive explicit least-privilege grants below.
 alter default privileges for role postgres in schema revenue_runtime
   revoke execute on functions from anon, authenticated;
 alter default privileges for role postgres in schema revenue_runtime
