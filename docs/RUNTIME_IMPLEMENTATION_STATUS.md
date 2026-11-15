@@ -46,3 +46,11 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 - Product public release: NOT READY.
 - Demand validation: NOT STARTED.
 - Verified revenue: INR 0.
+
+## Long-running task lease protection
+
+- Orchestrator now renews leases automatically while a registered handler is executing; heartbeat interval defaults to one-third of configured lease duration.
+- A runtime test was added using a 30ms lease and 75ms handler, asserting at least one heartbeat and successful completion.
+- Live PostgreSQL heartbeat test initially exposed an ambiguous attempt reference in the heartbeat audit insert. The SQL was corrected to qualify t.attempts, the function was replaced in the dedicated database, and the same live transaction test then passed.
+- Live heartbeat test also verified stale-token heartbeat rejection, max-attempt dead-letter transition, dead-letter event and lease-token clearing. The test transaction rolled back.
+- Project-wide PostgreSQL default function privileges were restored after review found that globally revoking PUBLIC EXECUTE would have changed defaults outside the private runtime schema. Canonical migration now limits default privilege changes to the private schema and relies on revoked schema usage plus explicit function grants.
