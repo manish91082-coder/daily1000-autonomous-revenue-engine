@@ -45,7 +45,7 @@ class TaskQueue {
   #assertLease(task, workerId, leaseToken) {
     if (!task || task.status !== 'running' || task.worker_id !== workerId ||
         typeof leaseToken !== 'string' || !leaseToken ||
-        !task.lease_token || !crypto.timingSafeEqual(Buffer.from(task.lease_token), Buffer.from(leaseToken))) {
+        !task.lease_token || Buffer.byteLength(task.lease_token) !== Buffer.byteLength(leaseToken) || !crypto.timingSafeEqual(Buffer.from(task.lease_token), Buffer.from(leaseToken))) {
       throw new Error('Task lease is not owned by this worker claim.');
     }
   }
