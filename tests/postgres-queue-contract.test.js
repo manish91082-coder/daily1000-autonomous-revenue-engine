@@ -61,3 +61,17 @@ test('PostgreSQL retry and expired-lease paths schedule bounded jittered backoff
   assert.match(sql, /available_at = case when t\.attempts >= t\.max_attempts/i);
   assert.match(sql, /available_at = case when attempts >= max_attempts/i);
 });
+
+test('PostgreSQL lease and retry inputs reject null and out-of-range values', () => {
+  const claimStart = sql.toLowerCase().indexOf('function revenue_runtime.claim_task');
+  const claimEnd = sql.indexOf('$$;', claimStart);
+  assert.match(sql.slice(claimStart, claimEnd), /p_lease_seconds is null or p_lease_seconds < 5 or p_lease_seconds > 3600/i);
+  const failStart = sql.toLowerCase().indexOf('function revenue_runtime.fail_task');
+  const failEnd = sql.indexOf('$$;', failStart);
+  assert.match(sql.slice(failStart, failEnd), /p_retry_delay_seconds is null or p_retry_delay_seconds < 1 or p_retry_delay_seconds > 3600/i);
+});
+
+test('expired leases emit a retry-scheduled event when attempts remain', () => {
+  assert.match(sql, /select id, 'task\.retry_scheduled', attempts/i);
+  assert.match(sql, /from expired where status = 'queued'/i);
+});
