@@ -4,42 +4,44 @@ Date: 2026-11-15
 Branch: source-import/v0.1.2
 Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 
-## Implemented in this increment
+## Implemented
 
 - `runtime/state-store.js`: versioned JSON state file, schema checks, atomic temp-file replacement.
-- `runtime/task-queue.js`: task enqueue, idempotency-key deduplication, priority ordering, worker leases, heartbeats, bounded attempts, retry state, terminal failure/dead-letter event.
-- `runtime/orchestrator.js`: task-type handler registry and one-task execution with result/error recording.
+- `runtime/task-queue.js`: enqueue, idempotency, priority, worker leases, 256-bit per-claim fencing tokens, constant-time token comparison, heartbeat, bounded attempts, retry state, terminal failure/dead-letter event.
+- `runtime/orchestrator.js`: passes the exact claim token into handler context and uses it for heartbeat/completion/failure.
 - `runtime/index.js`: runtime factory and public exports.
-- `tests/runtime.test.js`: seven tests for restart persistence, idempotency, handler execution, retry exhaustion, lease recovery, worker ownership, and priority.
+- `tests/runtime.test.js`: nine tests including same-worker stale-token rejection and missing-token rejection.
+- `database/postgres_queue.sql`: per-claim UUID fencing, exact-token checks for heartbeat/completion/failure, heartbeat lease bounds, and Supabase-oriented role grants.
+- `tests/postgres-queue-contract.test.js`: static contract checks for token fencing and privilege boundaries.
 
-## Verification evidence
+## Verification
 
-- Local Node.js runtime suite: 7 passed, 0 failed.
-- GitHub Actions CI run: https://github.com/manish91082-coder/daily1000-autonomous-revenue-engine/actions/runs/43735482998
-- CI run ID: 43735482998
-- Tested commit: 2e233febc1d597ddeedd04fb93891df65b7a988b
-- GitHub Actions conclusion: success.
-- Workflow runs on `main` and `source-import/v0.1.2`; the existing `npm test` command discovers `tests/*.test.js`, including the new runtime suite.
+- Earlier baseline GitHub Actions run #43735742707 passed before the latest fencing commits.
+- Latest fencing commits: runtime queue, orchestrator, runtime tests, SQL, SQL contract tests.
+- CI for the latest fencing commit: pending independent verification.
+- PostgreSQL SQL has NOT been applied to a database. Static contract tests are not live SQL execution.
 
 ## Critical limitations
 
-This is a deliberately small, dependency-free execution prototype, not a production distributed queue.
-
-- JSON state transactions are only safe for a single process. Concurrent processes or multiple cloud workers can race and overwrite state.
-- No transactional database, distributed locking, durable managed queue, scheduler, long-running worker supervisor, or cloud deployment exists yet.
-- No exponential backoff/jitter or configurable dead-letter replay UI exists yet.
-- No agent sandbox, model/provider adapter, secrets manager, budget enforcement, kill switch, monitoring, or alert delivery exists yet.
-- A task handler that runs longer than its lease must heartbeat; worker process death is detected only when another worker claims work after lease expiry.
-- External side effects still require provider-specific idempotency and reconciliation; the generic queue cannot guarantee exactly-once execution.
+- JSON state transactions are single-process only; concurrent processes/workers can race.
+- PostgreSQL lease fencing is a source-level draft, not live-verified.
+- Immediate requeue after lease expiry remains; bounded exponential backoff/jitter is still needed.
+- No live DB adapter, distributed worker, cloud scheduler, worker supervisor, watchdog, monitoring, alert delivery, kill switch, agent sandbox, provider adapter, or budget enforcement.
+- External side effects require provider-side idempotency and reconciliation; exactly-once effects are not guaranteed.
 
 ## Next engineering gate
 
-Replace the single-process JSON transaction backend with a transactional shared persistence/queue adapter before enabling multiple workers. Then add a continuously supervised cloud worker, scheduler, watchdog, structured logs, metrics, alerting, kill switch, and failure-injection tests. Only after those gates pass should the system be described as unattended 24x7.
+1. Obtain CI success for all fencing commits.
+2. Complete retry backoff and expiry-event semantics.
+3. Create/authorize a dedicated database project, apply migration, inspect grants and advisors.
+4. Implement the PostgreSQL adapter and integration/concurrency tests.
+5. Add supervised cloud workers, scheduler, watchdog, alerts, kill switch, and failure-injection tests.
+6. Only then proceed to the agent swarm and product-to-payment pipeline.
 
 ## Mission status
 
-- Runtime prototype: PASS (local tests and GitHub CI).
-- Multi-worker correctness: NOT TESTED / NOT SUPPORTED by JSON backend.
+- Runtime prototype: implemented; latest CI verification pending.
+- Multi-worker correctness: NOT VERIFIED.
 - Cloud 24x7 execution: NOT IMPLEMENTED.
 - Product public release: NOT READY.
 - Demand validation: NOT STARTED.
