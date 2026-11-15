@@ -86,3 +86,10 @@ test('private queue tables include explicit deny policies for Data API client ro
   assert.match(sql, /create policy deny_client_access_tasks[\s\S]*to anon, authenticated[\s\S]*using \(false\)[\s\S]*with check \(false\)/i);
   assert.match(sql, /create policy deny_client_access_task_events[\s\S]*to anon, authenticated[\s\S]*using \(false\)[\s\S]*with check \(false\)/i);
 });
+
+test('heartbeat audit event uses the task attempts column without ambiguity', () => {
+  const start = sql.toLowerCase().indexOf('function revenue_runtime.heartbeat_task');
+  const end = sql.indexOf('$$;', start);
+  const body = sql.slice(start, end);
+  assert.match(body, /select t\.id,'task\.heartbeat',p_worker_id,t\.attempts/i);
+});
