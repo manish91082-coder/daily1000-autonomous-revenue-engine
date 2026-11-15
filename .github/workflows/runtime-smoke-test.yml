@@ -1,0 +1,40 @@
+name: Authenticated runtime smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  invoke-runtime-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Invoke the protected Supabase worker
+        id: invoke
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          IDEMPOTENCY_KEY: runtime-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_URL"
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          response="$(curl --fail-with-body --silent --show-error --max-time 45 \
+            -X POST "${SUPABASE_URL%/}/functions/v1/runtime-worker" \
+            -H "Content-Type: application/json" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --data "{\"mode\":\"smoke_test\",\"idempotency_key\":\"$IDEMPOTENCY_KEY\"}")"
+          echo "$response" > "$RUNNER_TEMP/runtime-smoke-response.json"
+          node -e '
+            const fs = require("node:fs");
+            const r = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            if (r.worked !== true || r.status !== "succeeded" || !r.task_id || r.result?.ok !== true) {
+              console.error("Runtime smoke test did not prove task completion:", r);
+              process.exit(1);
+            }
+            console.log(JSON.stringify({worked:r.worked,status:r.status,task_id:r.task_id,result:r.result}, null, 2));
+          ' "$RUNNER_TEMP/runtime-smoke-response.json"
