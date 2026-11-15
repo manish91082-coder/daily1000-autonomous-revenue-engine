@@ -21,3 +21,21 @@ test('edge worker only executes explicitly registered health-check task', () => 
   assert.match(source, /task\.task_type === "runtime\.health_check"/);
   assert.match(source, /No Edge handler registered for task type/);
 });
+
+
+test('edge worker smoke-test path only enqueues a fixed health-check task', () => {
+  assert.match(source, /requestBody\.mode !== "smoke_test"/);
+  assert.match(source, /allowed_modes: \["smoke_test"\]/);
+  assert.match(source, /task_type, payload, idempotency_key, priority, max_attempts/);
+  assert.match(source, /values \('runtime\.health_check', '\{\}'::jsonb/);
+  assert.match(source, /on conflict \(idempotency_key\) do nothing/);
+  assert.match(source, /task\.queued/);
+});
+
+test('edge worker smoke-test requires a bounded idempotency key', () => {
+  assert.match(source, /A-Za-z0-9\._:-\]\{8,180\}/);
+});
+
+test('edge worker rolls back failed enqueue transactions before releasing the connection', () => {
+  assert.match(source, /queryArray\x60rollback\x60/);
+});
