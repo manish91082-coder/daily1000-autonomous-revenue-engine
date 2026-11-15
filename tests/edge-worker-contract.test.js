@@ -66,3 +66,11 @@ test('edge worker returns reconciled PostgreSQL audit counts for first execution
   assert.match(source, /result, audit, idempotent_replay: true/);
   assert.match(source, /status: "succeeded", result, audit/);
 });
+
+
+test('edge worker contains failure-recording errors and does not return raw database errors', () => {
+  assert.match(source, /failure_recording_unavailable/);
+  assert.match(source, /failure_recording_rejected/);
+  assert.match(source, /return json\(\{ error: "claim_failed" \}, 500\)/);
+  assert.doesNotMatch(source, /claim_failed", detail:/);
+});
