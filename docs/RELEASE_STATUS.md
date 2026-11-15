@@ -133,3 +133,6 @@ A direct archive upload through an explicitly supplied file attachment, or a use
 - Function source is tracked in `supabase/functions/runtime-worker/index.ts`; Deno config in `supabase/functions/runtime-worker/deno.json`; Postgres driver pinned to 0.19.5.
 - Deployment metadata and read-back source verified. No authenticated function invocation has been run, so runtime boot and database connectivity are not yet proven.
 - No scheduled invocation, continuous worker supervisor, or multi-agent task handlers are deployed.
+
+- Added strict lease-expiry fencing to both in-memory and PostgreSQL queues. Heartbeat, completion and failure now reject expired claims even before another worker reclaims them.
+- Live PostgreSQL rollback test passed: expired heartbeat=false, expired completion=false, expired failure=lease_not_owned.
