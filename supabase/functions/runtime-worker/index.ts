@@ -70,7 +70,7 @@ Deno.serve(async (req: Request) => {
     const queued = await connection.queryObject<{ id: string }>`
       insert into revenue_runtime.tasks
         (task_type, payload, idempotency_key, priority, max_attempts)
-      values ('runtime.health_check', '{}'::jsonb, ${idempotencyKey}, 100, 1)
+      values ('runtime.health_check', '{}'::jsonb, ${idempotencyKey}, 100, 3)
       on conflict (idempotency_key) do nothing
       returning id
     `;
@@ -112,6 +112,7 @@ Deno.serve(async (req: Request) => {
     if (completed.rows[0]?.ok !== true) return json({ error: "completion_rejected", task_id: task.id }, 409);
     return json({ worker_id: workerId, worked: true, task_id: task.id, status: "succeeded", result });
   } catch (error) {
+    try { await connection.queryArray`rollback`; } catch { /* transaction may already be closed */ }
     if (task) {
       const message = String(error instanceof Error ? error.message : error).slice(0, 1000);
       const failed = await connection.queryObject<StatusResult["rows"][number]>`
