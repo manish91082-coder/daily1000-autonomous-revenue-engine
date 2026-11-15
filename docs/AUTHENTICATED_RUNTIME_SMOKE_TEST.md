@@ -25,7 +25,7 @@ Never commit either value, print it in logs, place it in a workflow file, or use
 
 Open Actions → Authenticated runtime smoke test → Run workflow.
 
-The workflow fails unless the response confirms `worked=true`, `status=succeeded`, a task ID, and `result.ok=true`.
+The workflow sends the same idempotency key twice. It fails unless the first response confirms `worked=true`, `status=succeeded`, a task ID, and `result.ok=true`, and the second response returns the same task ID and stored result with `idempotent_replay=true`. This verifies that a replay does not execute or claim a different task.
 
 After a successful run, independently verify the task row and audit events in the private `revenue_runtime` schema. The workflow response alone is not the entire audit record.
 
