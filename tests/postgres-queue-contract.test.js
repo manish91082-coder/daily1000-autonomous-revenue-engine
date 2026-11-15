@@ -37,3 +37,20 @@ test('retry exhaustion records a terminal dead-letter event', () => {
   assert.match(sql, /task\.dead_lettered/i);
   assert.match(sql, /task\.retry_scheduled/i);
 });
+
+test('every PostgreSQL lease mutation is fenced by a per-claim token', () => {
+  assert.match(sql, /lease_token uuid/i);
+  assert.match(sql, /lease_token = gen_random_uuid\(\)/i);
+  for (const fn of ['heartbeat_task', 'complete_task', 'fail_task']) {
+    const start = sql.toLowerCase().indexOf(`function revenue_runtime.${fn}`);
+    const end = sql.indexOf('$$;', start);
+    const body = sql.slice(start, end);
+    assert.match(body, /p_lease_token uuid/i, `${fn} must accept a fencing token`);
+    assert.match(body, /lease_token = p_lease_token/i, `${fn} must validate the exact claim token`);
+  }
+});
+test('heartbeat lease duration is bounded and public API roles are denied', () => {
+  assert.match(sql, /p_lease_seconds is null or p_lease_seconds < 5 or p_lease_seconds > 3600/i);
+  assert.match(sql, /revoke all on schema revenue_runtime from public, anon, authenticated/i);
+  assert.match(sql, /grant usage on schema revenue_runtime to service_role/i);
+});
