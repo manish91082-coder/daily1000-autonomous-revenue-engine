@@ -143,7 +143,7 @@ begin
   update revenue_runtime.tasks
      set lease_expires_at = now() + make_interval(secs => p_lease_seconds),
          updated_at = now()
-   where id = p_task_id and status = 'running' and lease_owner = p_worker_id and lease_token = p_lease_token;
+   where id = p_task_id and status = 'running' and lease_owner = p_worker_id and lease_token = p_lease_token and lease_expires_at > now();
   get diagnostics v_updated = row_count;
   if v_updated = 1 then
     insert into revenue_runtime.task_events(task_id,event_type,worker_id,attempt)
@@ -167,7 +167,7 @@ begin
      set status = 'succeeded', result = p_result,
          lease_owner = null, lease_token = null, lease_expires_at = null,
          completed_at = now(), updated_at = now()
-   where id = p_task_id and status = 'running' and lease_owner = p_worker_id and lease_token = p_lease_token
+   where id = p_task_id and status = 'running' and lease_owner = p_worker_id and lease_token = p_lease_token and lease_expires_at > now()
    returning attempts into v_attempt;
   if not found then return false; end if;
   insert into revenue_runtime.task_events(task_id,event_type,worker_id,attempt)
@@ -197,7 +197,7 @@ begin
          last_error = left(coalesce(p_error,'unknown_error'),4000),
          completed_at = case when attempts >= max_attempts then now() else null end,
          updated_at = now()
-   where id = p_task_id and status = 'running' and lease_owner = p_worker_id and lease_token = p_lease_token
+   where id = p_task_id and status = 'running' and lease_owner = p_worker_id and lease_token = p_lease_token and lease_expires_at > now()
    returning * into v_task;
   if not found then return 'lease_not_owned'; end if;
   insert into revenue_runtime.task_events(task_id,event_type,worker_id,attempt,detail)
