@@ -120,3 +120,7 @@ A direct archive upload through an explicitly supplied file attachment, or a use
 - No live end-to-end Node adapter-to-Postgres test has been run because no runtime database connection string has been configured in the execution environment. The SQL-level tests above were run through the database connector.
 
 - Hardened default privileges for future objects in the private schema: global function EXECUTE is revoked from PUBLIC for the migration owner, and anon/authenticated default access to private-schema functions, tables and sequences is revoked. Live privilege query confirms anon cannot execute the claim function while service_role can.
+
+- Orchestrator now performs automatic lease heartbeats during long-running handlers. Added a 30ms lease / 75ms handler regression test; CI execution remains pending.
+- Live SQL heartbeat integration uncovered and fixed an ambiguous audit-event column reference. Replaced the function in the dedicated project; valid heartbeat, stale-token rejection, terminal dead-letter and lease cleanup test passed inside a rollback transaction.
+- Corrected default privilege scope: reverted project-wide default PUBLIC function privilege change and limited default-privilege adjustments to the private runtime schema.
