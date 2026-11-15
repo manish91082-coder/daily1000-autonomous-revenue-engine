@@ -13,7 +13,7 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 - Bounded exponential retry scheduling with full jitter, configurable base/cap, and availability-time filtering.
 - Lease expiry invalidates the old token, records expiry, schedules a jittered retry, or dead-letters at attempt exhaustion.
 - Runtime tests cover restart persistence, idempotency, handler execution, retry exhaustion, lease recovery delay, worker ownership, priority, stale-token fencing, missing tokens, exponential cap and jitter.
-- PostgreSQL queue is applied to the dedicated project; a Pool-compatible adapter (`runtime/postgres-queue.js`), PostgreSQL runtime factory, and generic graceful polling loop (`runtime/worker-loop.js`) are now committed. The adapter uses transactional enqueue plus an audit event and database functions for claim/heartbeat/complete/fail.
+- PostgreSQL queue is applied to the dedicated project with explicit deny-all client policies and default privilege revocations for future objects; a Pool-compatible adapter (`runtime/postgres-queue.js`), PostgreSQL runtime factory, and generic graceful polling loop (`runtime/worker-loop.js`) are now committed. The adapter uses transactional enqueue plus an audit event and database functions for claim/heartbeat/complete/fail.
 
 ## Verification
 
