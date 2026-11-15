@@ -34,7 +34,9 @@ test('orchestrator executes registered handler and records result', async () => 
     assert.equal(r.status, 'succeeded'); assert.deepEqual((await f.queue.get(t.task.id)).result, { total: 5 });
   } finally { await f.cleanup(); }
 });
-test('failed tasks retry with delay then enter terminal failed state', async () => {\n  let now = 1000;\n  const f = await fixture({ now: () => now, retryBaseMs: 100, retryMaxMs: 500, random: () => 1 });
+test('failed tasks retry with delay then enter terminal failed state', async () => {
+  let now = 1000;
+  const f = await fixture({ now: () => now, retryBaseMs: 100, retryMaxMs: 500, random: () => 1 });
   try {
     f.orchestrator.register('flaky', async () => { throw new Error('simulated failure'); });
     const t = await f.queue.enqueue({ type: 'flaky', maxAttempts: 2 });
