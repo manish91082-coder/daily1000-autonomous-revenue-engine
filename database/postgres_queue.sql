@@ -16,6 +16,7 @@ create table if not exists revenue_runtime.tasks (
   max_attempts integer not null default 3 check (max_attempts between 1 and 20),
   available_at timestamptz not null default now(),
   lease_owner text,
+  lease_token uuid,
   lease_expires_at timestamptz,
   result jsonb,
   last_error text,
@@ -23,9 +24,9 @@ create table if not exists revenue_runtime.tasks (
   updated_at timestamptz not null default now(),
   completed_at timestamptz,
   check (
-    (status = 'running' and lease_owner is not null and lease_expires_at is not null)
+    (status = 'running' and lease_owner is not null and lease_token is not null and lease_expires_at is not null)
     or
-    (status <> 'running' and lease_owner is null and lease_expires_at is null)
+    (status <> 'running' and lease_owner is null and lease_token is null and lease_expires_at is null)
   )
 );
 
@@ -77,6 +78,7 @@ begin
     update revenue_runtime.tasks t
        set status = case when t.attempts >= t.max_attempts then 'failed' else 'queued' end,
            lease_owner = null,
+           lease_token = null,
            lease_expires_at = null,
            last_error = coalesce(t.last_error, 'Worker lease expired'),
            updated_at = now(),
@@ -104,6 +106,7 @@ begin
      set status = 'running',
          attempts = attempts + 1,
          lease_owner = p_worker_id,
+         lease_token = gen_random_uuid(),
          lease_expires_at = now() + make_interval(secs => p_lease_seconds),
          updated_at = now()
    where id = v_task.id
@@ -117,7 +120,7 @@ end;
 $$;
 
 create or replace function revenue_runtime.heartbeat_task(
-  p_task_id uuid, p_worker_id text, p_lease_seconds integer default 60
+  p_task_id uuid, p_worker_id text, p_lease_token uuid, p_lease_seconds integer default 60
 )
 returns boolean
 language plpgsql
@@ -125,10 +128,16 @@ set search_path = pg_catalog, revenue_runtime
 as $$
 declare v_updated integer;
 begin
+  if p_lease_seconds is null or p_lease_seconds < 5 or p_lease_seconds > 3600 then
+    raise exception 'lease_seconds_out_of_range';
+  end if;
+  if p_worker_id is null or length(trim(p_worker_id)) = 0 or p_lease_token is null then
+    raise exception 'lease_identity_required';
+  end if;
   update revenue_runtime.tasks
      set lease_expires_at = now() + make_interval(secs => p_lease_seconds),
          updated_at = now()
-   where id = p_task_id and status = 'running' and lease_owner = p_worker_id;
+   where id = p_task_id and status = 'running' and lease_owner = p_worker_id and lease_token = p_lease_token;
   get diagnostics v_updated = row_count;
   if v_updated = 1 then
     insert into revenue_runtime.task_events(task_id,event_type,worker_id,attempt)
@@ -140,7 +149,7 @@ end;
 $$;
 
 create or replace function revenue_runtime.complete_task(
-  p_task_id uuid, p_worker_id text, p_result jsonb default null
+  p_task_id uuid, p_worker_id text, p_lease_token uuid, p_result jsonb default null
 )
 returns boolean
 language plpgsql
@@ -150,9 +159,9 @@ declare v_attempt integer;
 begin
   update revenue_runtime.tasks
      set status = 'succeeded', result = p_result,
-         lease_owner = null, lease_expires_at = null,
+         lease_owner = null, lease_token = null, lease_expires_at = null,
          completed_at = now(), updated_at = now()
-   where id = p_task_id and status = 'running' and lease_owner = p_worker_id
+   where id = p_task_id and status = 'running' and lease_owner = p_worker_id and lease_token = p_lease_token
    returning attempts into v_attempt;
   if not found then return false; end if;
   insert into revenue_runtime.task_events(task_id,event_type,worker_id,attempt)
@@ -162,7 +171,7 @@ end;
 $$;
 
 create or replace function revenue_runtime.fail_task(
-  p_task_id uuid, p_worker_id text, p_error text,
+  p_task_id uuid, p_worker_id text, p_lease_token uuid, p_error text,
   p_retry_delay_seconds integer default 15
 )
 returns text
@@ -175,11 +184,11 @@ begin
      set status = case when attempts >= max_attempts then 'failed' else 'queued' end,
          available_at = case when attempts >= max_attempts then available_at
                              else now() + make_interval(secs => greatest(1, least(p_retry_delay_seconds, 86400))) end,
-         lease_owner = null, lease_expires_at = null,
+         lease_owner = null, lease_token = null, lease_expires_at = null,
          last_error = left(coalesce(p_error,'unknown_error'),4000),
          completed_at = case when attempts >= max_attempts then now() else null end,
          updated_at = now()
-   where id = p_task_id and status = 'running' and lease_owner = p_worker_id
+   where id = p_task_id and status = 'running' and lease_owner = p_worker_id and lease_token = p_lease_token
    returning * into v_task;
   if not found then return 'lease_not_owned'; end if;
   insert into revenue_runtime.task_events(task_id,event_type,worker_id,attempt,detail)
@@ -192,3 +201,13 @@ $$;
 
 comment on schema revenue_runtime is
   'Private internal queue schema. Do not expose through the Supabase Data API.';
+
+-- Supabase-oriented least-privilege baseline: only the server-side service role
+-- may access this private queue schema. Never expose it through the Data API.
+revoke all on schema revenue_runtime from public, anon, authenticated;
+revoke all on all tables in schema revenue_runtime from public, anon, authenticated;
+revoke execute on all functions in schema revenue_runtime from public, anon, authenticated;
+grant usage on schema revenue_runtime to service_role;
+grant select, insert, update on all tables in schema revenue_runtime to service_role;
+grant usage, select on all sequences in schema revenue_runtime to service_role;
+grant execute on all functions in schema revenue_runtime to service_role;
