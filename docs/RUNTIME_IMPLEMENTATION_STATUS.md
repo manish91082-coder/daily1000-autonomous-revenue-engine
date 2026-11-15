@@ -25,7 +25,7 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 ## Critical limitations
 
 - JSON state transactions are single-process only and are not safe for multiple cloud workers.
-- PostgreSQL queue and grants are source-level drafts, not live-verified.
+- PostgreSQL queue schema, private grants, fencing functions and targeted SQL lifecycle tests are live-verified on the dedicated Supabase project. The Node adapter has contract tests only; it has not yet been exercised through a live Node-to-Postgres connection.
 - SQL retry scheduling uses database random jitter; actual database semantics and concurrency need live integration tests.
 - No live DB adapter, distributed worker, cloud scheduler, worker supervisor, watchdog, monitoring, alert delivery, kill switch, agent sandbox, provider adapter, or budget enforcement.
 - External side effects require provider-side idempotency and reconciliation; exactly-once effects are not guaranteed.
@@ -33,10 +33,11 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 ## Next engineering gate
 
 1. Confirm GitHub CI for the latest commits (connector currently exposes no push-run record; status remains pending).
-2. Run independent-session concurrency/load tests against the dedicated project.
-3. Implement a PostgreSQL adapter and distributed worker.
-4. Add scheduler, worker supervisor, watchdog, alerting, kill switch and failure-injection tests.
-5. Only then activate agent swarm and product-to-payment pipeline.
+2. Configure protected GitHub Actions secrets and run the authenticated cloud smoke test.
+3. Reconcile the returned task ID against PostgreSQL task state and audit events.
+4. Run independent-session concurrency/load and worker crash/restart tests.
+5. Add scheduler, worker supervisor, watchdog, alerting, kill switch and failure-injection tests.
+6. Only then activate agent swarm and product-to-payment pipeline.
 
 ## Mission status
 
@@ -71,3 +72,16 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 - In-memory queue applies the same expiry rule. A worker cannot revive or mutate an expired lease even if no replacement worker has claimed it yet.
 - Added regression tests for expired heartbeat, completion and failure attempts.
 - Live rollback-scoped PostgreSQL test confirmed expired heartbeat=false, expired completion=false and expired failure=lease_not_owned.
+
+
+## 15 Nov 2026 authenticated smoke-test pathway
+
+- Added a restricted POST mode `smoke_test` to the Edge Function. It accepts only a fixed `runtime.health_check` task and a bounded idempotency key; arbitrary task types and executable payloads are not accepted.
+- Enqueue and audit-event insertion are transactional. Failed enqueue transactions attempt rollback before the connection is released.
+- Deployed the updated function as version 4; deployment read-back confirms ACTIVE and `verify_jwt=true`.
+- Added a manual-only GitHub Actions workflow at `.github/workflows/runtime-smoke-test.yml`. It reads `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` only from protected repository secrets and requires a successful task result.
+- Added an operator runbook at `docs/AUTHENTICATED_RUNTIME_SMOKE_TEST.md`.
+- GitHub Actions CI run 94, commit `4044026307ab52218e6c6b4241532073c7202dd3`, completed SUCCESS: 62 tests passed, 0 failed; both JavaScript syntax checks passed.
+- The first CI attempts exposed an incorrectly escaped whitespace regex in the SQL contract test. The test regex was corrected, then the full suite passed. Earlier failed runs are retained as evidence and not hidden.
+- No authenticated invocation has yet been run. The manual workflow requires the two protected GitHub repository secrets to be configured. Database task count remains zero and no Edge invocation logs exist.
+- The smoke-test workflow is manual only. It does not provide scheduling, a continuous worker supervisor or 24x7 operation.
