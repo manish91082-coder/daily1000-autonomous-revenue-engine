@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, 'source-import/v0.1.2']
   pull_request:
     branches: [main]
 permissions:

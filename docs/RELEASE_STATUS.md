@@ -94,3 +94,45 @@ A direct archive upload through an explicitly supplied file attachment, or a use
 - Confirmed absent from `main`: `agents/agent_roles.yaml`, `state/mission_state.json`, `.gitignore`, `LICENSE`, `SECURITY.md`, and the full numbered source documentation set.
 - The exact 24-file v0.1.2 archive is still not present in GitHub. Import workflow remains dormant; full source import remains BLOCKED.
 - Browser QA remains BLOCKED by the local navigation policy described above. No visual or interaction pass is claimed.
+
+
+## 15 Nov 2026 runtime database milestone
+
+- Created isolated Supabase project `daily1000-agent-runtime` in `ap-south-1`; project ID `vpuuotssufznyjgtubuz`. Project creation quote was $0/month.
+- Applied `database/postgres_queue.sql` as migration `create_private_agent_runtime_queue`.
+- Added explicit deny-all RLS policies for `anon` and `authenticated` on both queue tables. Security Advisor subsequently returned no lints; Performance and Health advisors also returned no lints.
+- Catalog verification: RLS enabled on both tables; no schema usage for `anon` or `authenticated`; `service_role` has backend schema/table access.
+- Rollback-scoped live PostgreSQL integration test passed claim, successful completion, stale-token rejection, explicit failure/retry, lease-token clearing, expired-lease retry events and reclaim.
+- The test transaction rolled back; persistent task count is 0.
+- Runtime JavaScript retry test had two accidental literal escaped-newline sequences. Both were repaired in the source branch.
+- SQL review corrected claim locking-clause order and added null/range validation for lease and retry inputs, plus a distinct retry-scheduled event for expired leases.
+- Latest GitHub Actions result for these source commits is not independently visible through the available Actions connector; CI must be treated as PENDING, not PASS.
+- Independent parallel-session concurrency/load tests, PostgreSQL adapter, distributed worker, scheduler, watchdog, alerting, kill switch, provider adapter, end-to-end checkout/payment and reconciliation remain NOT IMPLEMENTED.
+- Full audited archive import to `main`, browser visual QA and demand validation remain BLOCKED/NOT STARTED. Verified revenue remains INR 0.
+
+
+## Runtime adapter and worker-loop progress
+
+- Added a Pool-compatible PostgreSQL queue adapter at `runtime/postgres-queue.js`, with transactional enqueue + event insertion and database-function-backed claim, heartbeat, complete and fail operations.
+- Added `createPostgresRuntime` and a generic graceful polling worker loop. These are source prototypes only; no DB connection pool, secrets, cloud process, or supervisor has been configured.
+- Added adapter contract tests and worker-loop tests. They are included in the branch CI workflow, but the latest push-triggered CI run cannot currently be retrieved through the available GitHub Actions connector. CI status is PENDING.
+- Targeted two-session database probe: two concurrent claim calls held transactions open and returned different task IDs. This is a narrow concurrency PASS, not a production load test.
+- No live end-to-end Node adapter-to-Postgres test has been run because no runtime database connection string has been configured in the execution environment. The SQL-level tests above were run through the database connector.
+
+- Hardened default privileges for future objects in the private schema: global function EXECUTE is revoked from PUBLIC for the migration owner, and anon/authenticated default access to private-schema functions, tables and sequences is revoked. Live privilege query confirms anon cannot execute the claim function while service_role can.
+
+- Orchestrator now performs automatic lease heartbeats during long-running handlers. Added a 30ms lease / 75ms handler regression test; CI execution remains pending.
+- Live SQL heartbeat integration uncovered and fixed an ambiguous audit-event column reference. Replaced the function in the dedicated project; valid heartbeat, stale-token rejection, terminal dead-letter and lease cleanup test passed inside a rollback transaction.
+- Corrected default privilege scope: reverted project-wide default PUBLIC function privilege change and limited default-privilege adjustments to the private runtime schema.
+
+## 15 Nov 2026 cloud worker deployment
+
+- Deployed Supabase Edge Function `runtime-worker`, version 3, status ACTIVE, JWT verification enabled.
+- Uses a service_role-only authorization gate and a one-connection Deno Postgres pool through the platform-provided `SUPABASE_DB_URL`, keeping the internal queue schema outside the Data API exposed schemas.
+- Only `runtime.health_check` is currently executable. Unregistered task types are sent through bounded retry/dead-letter handling.
+- Function source is tracked in `supabase/functions/runtime-worker/index.ts`; Deno config in `supabase/functions/runtime-worker/deno.json`; Postgres driver pinned to 0.19.5.
+- Deployment metadata and read-back source verified. No authenticated function invocation has been run, so runtime boot and database connectivity are not yet proven.
+- No scheduled invocation, continuous worker supervisor, or multi-agent task handlers are deployed.
+
+- Added strict lease-expiry fencing to both in-memory and PostgreSQL queues. Heartbeat, completion and failure now reject expired claims even before another worker reclaims them.
+- Live PostgreSQL rollback test passed: expired heartbeat=false, expired completion=false, expired failure=lease_not_owned.

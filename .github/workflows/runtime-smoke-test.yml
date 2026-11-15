@@ -1,0 +1,56 @@
+name: Authenticated runtime smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  invoke-runtime-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Invoke the protected Supabase worker
+        id: invoke
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          IDEMPOTENCY_KEY: runtime-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_URL"
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          response="$(curl --fail-with-body --silent --show-error --max-time 45 \
+            -X POST "${SUPABASE_URL%/}/functions/v1/runtime-worker" \
+            -H "Content-Type: application/json" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --data "{\"mode\":\"smoke_test\",\"idempotency_key\":\"$IDEMPOTENCY_KEY\"}")"
+          echo "$response" > "$RUNNER_TEMP/runtime-smoke-response.json"
+          replay="$(curl --fail-with-body --silent --show-error --max-time 45 \
+            -X POST "${SUPABASE_URL%/}/functions/v1/runtime-worker" \
+            -H "Content-Type: application/json" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --data "{\"mode\":\"smoke_test\",\"idempotency_key\":\"$IDEMPOTENCY_KEY\"}")"
+          echo "$replay" > "$RUNNER_TEMP/runtime-smoke-replay.json"
+          node -e '
+            const fs = require("node:fs");
+            const first = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            const replay = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+            if (first.worked !== true || first.status !== "succeeded" || !first.task_id || first.result?.ok !== true ||
+                first.audit?.queued !== 1 || first.audit?.claimed !== 1 || first.audit?.succeeded !== 1) {
+              console.error("Runtime smoke test did not prove task completion:", first);
+              process.exit(1);
+            }
+            if (replay.status !== "succeeded" || replay.task_id !== first.task_id ||
+                replay.idempotent_replay !== true || replay.result?.ok !== true ||
+                replay.audit?.queued !== 1 || replay.audit?.claimed !== 1 || replay.audit?.succeeded !== 1 ||
+                replay.result?.task_id !== first.task_id || replay.result?.checked_at !== first.result.checked_at) {
+              console.error("Idempotent replay did not return the original task result:", {first, replay});
+              process.exit(1);
+            }
+            console.log(JSON.stringify({first:{status:first.status,task_id:first.task_id}, replay:{status:replay.status,task_id:replay.task_id,idempotent_replay:replay.idempotent_replay}}, null, 2));
+          ' "$RUNNER_TEMP/runtime-smoke-response.json" "$RUNNER_TEMP/runtime-smoke-replay.json"
