@@ -80,15 +80,17 @@ begin
            lease_owner = null,
            lease_token = null,
            lease_expires_at = null,
-           last_error = coalesce(t.last_error, 'Worker lease expired'),
+           last_error = 'Worker lease expired',
+           available_at = case when t.attempts >= t.max_attempts then t.available_at
+                               else now() + make_interval(secs => floor(random() * least(86400::numeric, 15 * power(2::numeric, greatest(0, t.attempts - 1))))::integer) end,
            updated_at = now(),
            completed_at = case when t.attempts >= t.max_attempts then now() else null end
      where t.status = 'running' and t.lease_expires_at <= now()
-     returning t.id, t.status, t.attempts
+     returning t.id, t.status, t.attempts, t.available_at
   )
   insert into revenue_runtime.task_events(task_id,event_type,attempt,detail)
   select id, case when status = 'failed' then 'task.dead_lettered' else 'task.lease_expired' end,
-         attempts, jsonb_build_object('reason','lease_expired')
+         attempts, jsonb_build_object('reason','lease_expired','available_at',available_at)
     from expired;
 
   select * into v_task
@@ -183,7 +185,7 @@ begin
   update revenue_runtime.tasks
      set status = case when attempts >= max_attempts then 'failed' else 'queued' end,
          available_at = case when attempts >= max_attempts then available_at
-                             else now() + make_interval(secs => greatest(1, least(p_retry_delay_seconds, 86400))) end,
+                             else now() + make_interval(secs => floor(random() * least(86400::numeric, greatest(1, least(p_retry_delay_seconds, 3600)) * power(2::numeric, greatest(0, attempts - 1))))::integer) end,
          lease_owner = null, lease_token = null, lease_expires_at = null,
          last_error = left(coalesce(p_error,'unknown_error'),4000),
          completed_at = case when attempts >= max_attempts then now() else null end,
