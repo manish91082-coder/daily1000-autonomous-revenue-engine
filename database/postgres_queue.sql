@@ -211,6 +211,17 @@ $$;
 comment on schema revenue_runtime is
   'Private internal queue schema. Do not expose through the Supabase Data API.';
 
+-- Lock down future objects created by the migration owner in this private schema.
+-- PostgreSQL grants EXECUTE to PUBLIC globally by default, so revoke globally.
+alter default privileges for role postgres
+  revoke execute on functions from public;
+alter default privileges for role postgres in schema revenue_runtime
+  revoke execute on functions from anon, authenticated;
+alter default privileges for role postgres in schema revenue_runtime
+  revoke all on tables from public, anon, authenticated;
+alter default privileges for role postgres in schema revenue_runtime
+  revoke all on sequences from public, anon, authenticated;
+
 -- Supabase-oriented least-privilege baseline: only the server-side service role
 -- may access this private queue schema. Never expose it through the Data API.
 revoke all on schema revenue_runtime from public, anon, authenticated;
