@@ -28,7 +28,7 @@ Audit type: static source review; live database verification pending
 - Runtime: configurable exponential cap with full jitter, retry availability timestamp and event records.
 - Expired runtime leases invalidate tokens and schedule retry or dead-letter at attempt exhaustion.
 - SQL draft: jittered exponential retry delay for explicit failure and lease expiry.
-- Live PostgreSQL integration test passed for claim, valid/stale-token completion, explicit failure retry, lease-token clearing, expired-lease retry events and reclaim. The test ran in a rollback transaction. Independent simultaneous-session race testing remains open.
+- Live PostgreSQL integration test passed for claim, valid/stale-token completion, explicit failure retry, lease-token clearing, expired-lease retry events and reclaim. The test ran in a rollback transaction. Two simultaneous independent SQL calls held claim transactions open for two seconds and returned distinct task IDs, providing a targeted concurrent-claim PASS; broader stress/race testing remains open.
 
 ### P2 - Operational completeness
 No cloud scheduler, worker supervisor, watchdog, alerting, kill switch, budget enforcement, agent sandbox, provider adapter, or external side-effect reconciliation exists. Exactly-once external effects are not guaranteed.
@@ -40,7 +40,7 @@ No cloud scheduler, worker supervisor, watchdog, alerting, kill switch, budget e
 - Migration applied to dedicated project `vpuuotssufznyjgtubuz` (Postgres 17.11, Mumbai region).
 - Live transactional integration test: PASS for tested flows; no parallel-session concurrency race test yet.
 - Supabase Security Advisor: no lints after explicit deny-all policies; Performance and Health advisors: no lints.
-- Multi-worker correctness NOT VERIFIED; SQL `SKIP LOCKED` semantics still need independent concurrent-connection load tests.
+- Targeted two-session `SKIP LOCKED` probe: PASS (distinct task IDs). Full concurrent load/race and fault-injection tests: NOT VERIFIED.
 - Production readiness NO.
 
 ## Release gate
