@@ -147,8 +147,8 @@ begin
   get diagnostics v_updated = row_count;
   if v_updated = 1 then
     insert into revenue_runtime.task_events(task_id,event_type,worker_id,attempt)
-    select id,'task.heartbeat',p_worker_id,attempt
-      from revenue_runtime.tasks where id = p_task_id;
+    select t.id,'task.heartbeat',p_worker_id,t.attempts
+      from revenue_runtime.tasks t where t.id = p_task_id;
   end if;
   return v_updated = 1;
 end;
