@@ -39,3 +39,21 @@ test('edge worker smoke-test requires a bounded idempotency key', () => {
 test('edge worker rolls back failed enqueue transactions before releasing the connection', () => {
   assert.match(source, /queryArray\x60rollback\x60/);
 });
+
+test('edge worker resolves the exact idempotency record and never claims unrelated queue work', () => {
+  assert.match(source, /where idempotency_key = \$\{idempotencyKey\}[\s\S]*for update/);
+  assert.match(source, /where id = \$\{task\.id\}::uuid and status = 'queued'[\s\S]*returning \*/);
+  assert.doesNotMatch(source, /select \* from revenue_runtime\.claim_task/);
+});
+
+test('edge worker returns completed and in-progress idempotent replays without executing another task', () => {
+  assert.match(source, /task\.status === "succeeded"[\s\S]*idempotent_replay: true/);
+  assert.match(source, /status: "in_progress", idempotent_replay: true/);
+  assert.match(source, /task\.status === "failed" \|\| task\.status === "cancelled"/);
+});
+
+test('edge worker recovers only an expired lease for the requested idempotency key', () => {
+  assert.match(source, /lease_expires_at/);
+  assert.match(source, /source":"idempotent_recovery/);
+  assert.match(source, /task\.attempts >= task\.max_attempts/);
+});
