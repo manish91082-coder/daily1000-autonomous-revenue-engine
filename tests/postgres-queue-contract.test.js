@@ -93,3 +93,11 @@ test('heartbeat audit event uses the task attempts column without ambiguity', ()
   const body = sql.slice(start, end);
   assert.match(body, /select t\.id,'task\.heartbeat',p_worker_id,t\.attempts/i);
 });
+
+test('heartbeat, completion and failure reject claims whose lease has expired', () => {
+  for (const fn of ['heartbeat_task', 'complete_task', 'fail_task']) {
+    const start = sql.toLowerCase().indexOf(`function revenue_runtime.${fn}`);
+    const end = sql.indexOf('$$;', start);
+    assert.match(sql.slice(start, end), /lease_expires_at > now\(\)/i, `${fn} must reject expired leases`);
+  }
+});
