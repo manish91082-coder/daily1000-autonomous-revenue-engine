@@ -57,3 +57,12 @@ test('edge worker recovers only an expired lease for the requested idempotency k
   assert.match(source, /source":"idempotent_recovery/);
   assert.match(source, /task\.attempts >= task\.max_attempts/);
 });
+
+
+test('edge worker returns reconciled PostgreSQL audit counts for first execution and replay', () => {
+  assert.match(source, /count\(\*\) filter \(where event_type = 'task\.queued'\)/);
+  assert.match(source, /count\(\*\) filter \(where event_type = 'task\.claimed'\)/);
+  assert.match(source, /count\(\*\) filter \(where event_type = 'task\.succeeded'\)/);
+  assert.match(source, /result, audit, idempotent_replay: true/);
+  assert.match(source, /status: "succeeded", result, audit/);
+});
