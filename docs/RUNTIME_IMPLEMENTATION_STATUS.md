@@ -19,8 +19,8 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 
 - Previous CI run #43735742707 passed before the recent fencing and retry commits.
 - New fencing/retry changes are committed to this branch; latest CI result must be independently confirmed before claiming PASS.
-- PostgreSQL SQL has NOT been applied to a database. Static contract tests are not live SQL execution.
-- No live concurrency, stale-token or permission integration tests have run.
+- PostgreSQL migration is applied to the dedicated Supabase project `vpuuotssufznyjgtubuz` (Postgres 17.11, ap-south-1). A rollback-scoped live SQL integration test passed claim, completion, stale-token rejection, explicit retry, expired-lease retry events, reclaim, and client privilege assertions.
+- Live stale-token and privilege integration checks passed. Parallel independent-session concurrency testing remains pending.
 
 ## Critical limitations
 
@@ -33,7 +33,7 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 ## Next engineering gate
 
 1. Confirm GitHub CI for the latest commits.
-2. Execute SQL integration and concurrency tests against a dedicated project after explicit project authorization.
+2. Run independent-session concurrency/load tests against the dedicated project.
 3. Implement a PostgreSQL adapter and distributed worker.
 4. Add scheduler, worker supervisor, watchdog, alerting, kill switch and failure-injection tests.
 5. Only then activate agent swarm and product-to-payment pipeline.
