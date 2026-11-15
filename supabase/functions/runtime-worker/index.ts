@@ -7,6 +7,11 @@ type Task = {
   payload: Record<string, unknown>;
   lease_token: string;
   attempts: number;
+  max_attempts: number;
+  status: string;
+  available_at: Date | string;
+  lease_expires_at: Date | string | null;
+  result: Record<string, unknown> | null;
 };
 
 type ClaimResult = { rows: Task[] };
@@ -83,10 +88,77 @@ Deno.serve(async (req: Request) => {
         values (${queued.rows[0].id}::uuid, 'task.queued', '{"source":"authenticated_smoke_test"}'::jsonb)
       `;
     }
-    await connection.queryArray`commit`;
-    const claimed = await connection.queryObject<Task>`select * from revenue_runtime.claim_task(${workerId}, 60)`;
+
+    // Lock the exact idempotency record. Never claim an unrelated queue item.
+    const existing = await connection.queryObject<Task>`
+      select * from revenue_runtime.tasks
+       where idempotency_key = ${idempotencyKey}
+       for update
+    `;
+    task = existing.rows[0] ?? null;
+    if (!task) throw new Error("idempotency_record_missing");
+
+    if (task.status === "succeeded") {
+      await connection.queryArray`commit`;
+      return json({ worker_id: workerId, worked: true, task_id: task.id, status: "succeeded", result: task.result, idempotent_replay: true });
+    }
+    if (task.status === "failed" || task.status === "cancelled") {
+      await connection.queryArray`commit`;
+      return json({ worker_id: workerId, worked: false, task_id: task.id, status: task.status, idempotent_replay: true }, 409);
+    }
+    if (task.status === "running") {
+      const expiry = task.lease_expires_at ? new Date(task.lease_expires_at).getTime() : 0;
+      if (expiry > Date.now()) {
+        await connection.queryArray`commit`;
+        return json({ worker_id: workerId, worked: false, task_id: task.id, status: "in_progress", idempotent_replay: true }, 202);
+      }
+      if (task.attempts >= task.max_attempts) {
+        await connection.queryArray`
+          update revenue_runtime.tasks
+             set status = 'failed', lease_owner = null, lease_token = null,
+                 lease_expires_at = null, last_error = 'Worker lease expired',
+                 completed_at = now(), updated_at = now()
+           where id = ${task.id}::uuid
+        `;
+        await connection.queryArray`
+          insert into revenue_runtime.task_events(task_id,event_type,attempt,detail)
+          values (${task.id}::uuid,'task.dead_lettered',${task.attempts},'{"reason":"lease_expired"}'::jsonb)
+        `;
+        await connection.queryArray`commit`;
+        return json({ worker_id: workerId, worked: false, task_id: task.id, status: "failed" }, 409);
+      }
+      await connection.queryArray`
+        update revenue_runtime.tasks
+           set status = 'queued', lease_owner = null, lease_token = null,
+               lease_expires_at = null, available_at = now(), updated_at = now()
+         where id = ${task.id}::uuid
+      `;
+      await connection.queryArray`
+        insert into revenue_runtime.task_events(task_id,event_type,attempt,detail)
+        values (${task.id}::uuid,'task.lease_expired',${task.attempts},'{"source":"idempotent_recovery"}'::jsonb)
+      `;
+      task.status = "queued";
+    }
+    if (task.status !== "queued") throw new Error("unexpected_task_state");
+    if (new Date(task.available_at).getTime() > Date.now()) {
+      await connection.queryArray`commit`;
+      return json({ worker_id: workerId, worked: false, task_id: task.id, status: "retry_wait", idempotent_replay: true }, 202);
+    }
+    const claimed = await connection.queryObject<Task>`
+      update revenue_runtime.tasks
+         set status = 'running', attempts = attempts + 1,
+             lease_owner = ${workerId}, lease_token = gen_random_uuid(),
+             lease_expires_at = now() + interval '60 seconds', updated_at = now()
+       where id = ${task.id}::uuid and status = 'queued'
+       returning *
+    `;
     task = claimed.rows[0] ?? null;
-    if (!task) return json({ worker_id: workerId, worked: false, status: "idle" });
+    if (!task) throw new Error("targeted_claim_failed");
+    await connection.queryArray`
+      insert into revenue_runtime.task_events(task_id,event_type,worker_id,attempt)
+      values (${task.id}::uuid,'task.claimed',${workerId},${task.attempts})
+    `;
+    await connection.queryArray`commit`;
 
     let result: Record<string, unknown>;
     if (task.task_type === "runtime.health_check") {
