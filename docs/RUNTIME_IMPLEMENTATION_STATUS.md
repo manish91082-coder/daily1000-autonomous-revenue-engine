@@ -64,3 +64,10 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 - Function source and deno.json are versioned under supabase/functions/runtime-worker in the active branch. Driver pinned to jsr:@db/postgres@0.19.5.
 - Deployment is confirmed ACTIVE and source was read back from the project. No authenticated invocation has yet been executed; therefore function boot, direct DB connectivity and end-to-end queue processing remain NOT VERIFIED.
 - No scheduler invokes this worker automatically yet. It is an on-demand cloud execution endpoint, not a 24x7 supervisor.
+
+## Strict lease-expiry fencing
+
+- All PostgreSQL heartbeat, complete and fail functions now require the lease expiry timestamp to be in the future, in addition to matching worker ID and per-claim token.
+- In-memory queue applies the same expiry rule. A worker cannot revive or mutate an expired lease even if no replacement worker has claimed it yet.
+- Added regression tests for expired heartbeat, completion and failure attempts.
+- Live rollback-scoped PostgreSQL test confirmed expired heartbeat=false, expired completion=false and expired failure=lease_not_owned.
