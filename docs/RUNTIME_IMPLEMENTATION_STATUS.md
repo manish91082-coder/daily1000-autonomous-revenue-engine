@@ -85,3 +85,14 @@ Status: CORE PROTOTYPE IMPLEMENTED; CLOUD/PRODUCTION RUNTIME NOT IMPLEMENTED
 - The first CI attempts exposed an incorrectly escaped whitespace regex in the SQL contract test. The test regex was corrected, then the full suite passed. Earlier failed runs are retained as evidence and not hidden.
 - No authenticated invocation has yet been run. The manual workflow requires the two protected GitHub repository secrets to be configured. Database task count remains zero and no Edge invocation logs exist.
 - The smoke-test workflow is manual only. It does not provide scheduling, a continuous worker supervisor or 24x7 operation.
+
+
+## 15 Nov 2026 duplicate-safe smoke execution hardening
+
+- A source audit identified that the prior smoke-test endpoint inserted idempotently but then called the generic queue claim function. On a repeated idempotency key, that could claim an unrelated queued task.
+- Replaced generic queue claiming in the smoke-test path with a transactionally locked lookup by the exact idempotency key and a targeted update of that same task.
+- Completed tasks now return their stored result as an idempotent replay. Running tasks return an in-progress response without starting another task. Failed/cancelled tasks return a terminal response. Expired leases for the same task are recovered with attempt-limit enforcement.
+- Added contract tests for exact-key locking, targeted claim, completed/in-progress replay and expired-lease recovery.
+- GitHub CI run #98, commit `3e1161820e1e19c022c660ff30731afce7c092ae`, completed SUCCESS. Run #97 failed because an older contract assertion still expected the removed generic claim call; that assertion was corrected in the next commit. The failed run is retained in history.
+- Deployed the corrected Edge Function as version 5, status ACTIVE, with `verify_jwt=true`. Deployment SHA: `be45c6a301e717a8374c5ce2bb4ecedeef55dcecb247b8be6d55248d517bf25c`.
+- This is a code/deployment verification only. No authenticated invocation or live duplicate replay has yet been executed. Database task count, event reconciliation and function execution remain pending.
